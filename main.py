@@ -1,6 +1,9 @@
 # datetime нужен, чтобы записывать дату и время обновления цены.
 import datetime
 import argparse
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 
 # Инструменты для подключения к Supabase.
 from supabase import create_client, Client
@@ -9,12 +12,16 @@ from supabase import create_client, Client
 from parsers.ocean_sushi import parse_menu as parse_ocean
 from parsers.hesburger import parse_menu as parse_hesburger
 
+# Загружаем переменные из .env в корне проекта.
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
-# Адрес нашего проекта Supabase.
-URL = "https://jtjtaiuikffeetuzssgm.supabase.co"
+URL = os.getenv("SUPABASE_URL")
+KEY = os.getenv("SUPABASE_SECRET_KEY")
 
-# Публичный ключ проекта Supabase.
-KEY = "sb_publishable_FvhJEtpP5oauHXNTUvQRug_dgQ_F4vV"
+if not URL or not KEY:
+    raise RuntimeError(
+        "Не заданы SUPABASE_URL и SUPABASE_SECRET_KEY в .env"
+    )
 
 # Создаём подключение к базе данных.
 supabase: Client = create_client(URL, KEY)
