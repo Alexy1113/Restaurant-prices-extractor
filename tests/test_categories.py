@@ -3,7 +3,10 @@ import unittest
 
 from parsers.categories import canonical_category_ru
 from parsers.monk import get_product_type as get_monk_product_type
-from parsers.ocean_sushi import get_product_type
+from parsers.ocean_sushi import (
+    get_product_type,
+    normalize_baked_category_et,
+)
 
 
 class CategoryNormalizationTests(unittest.TestCase):
@@ -67,6 +70,32 @@ class CategoryNormalizationTests(unittest.TestCase):
                     ),
                     "Роллы",
                 )
+
+    def test_ocean_sushi_baked_roll_category_normalized_in_both_languages(self):
+        cases = (
+            ("Запечённые", "Hot Salmon"),
+            ("Baked", "Hot Tuna"),
+            ("Küpsetatud", "Hot Krevett"),
+        )
+        for category, name in cases:
+            with self.subTest(category=category, name=name):
+                product_type = get_product_type(category, name)
+                self.assertEqual(product_type, "sushi_rolls")
+                self.assertEqual(
+                    canonical_category_ru(product_type, category_ru=category, dish_name=name),
+                    "Роллы",
+                )
+                self.assertEqual(
+                    normalize_baked_category_et(category, product_type),
+                    "Maki",
+                )
+
+        # A baked gunkan is not a roll and must keep its specific category.
+        self.assertEqual(
+            normalize_baked_category_et("Küpsetatud Gunkan", "gunkan"),
+            "Küpsetatud Gunkan",
+        )
+        self.assertEqual(normalize_baked_category_et("Maki", "sushi_rolls"), "Maki")
 
     def test_ocean_sushi_baked_gunkan_remains_gunkan(self):
         cases = (
