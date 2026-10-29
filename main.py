@@ -47,7 +47,7 @@ def normalize_match_name(value):
     """Normalizes dish names for safe fallback matching across code changes."""
     text = unicodedata.normalize("NFKD", str(value or "").casefold())
     text = "".join(char for char in text if not unicodedata.combining(char))
-    return " ".join(re.findall(r"[^\\W_]+", text, flags=re.UNICODE))
+    return " ".join(re.findall(r"[^\W_]+", text, flags=re.UNICODE))
 
 
 def normalize_variant_key(value):
