@@ -11,6 +11,7 @@ from parsers.break_time import (
     merge_language_records,
     _catalog_context,
     _discover_category_urls,
+    _known_category_urls,
 )
 from parsers.categories import canonical_category_et, canonical_category_ru
 
@@ -149,6 +150,21 @@ class BreakTimeCatalogDiscoveryTests(unittest.TestCase):
         self.assertEqual(ru, ("burgerid", 12))
         self.assertEqual(et, ru)
 
+    def test_known_menu_categories_seed_twenty_urls_for_each_language(self):
+        estonian = _known_category_urls("et")
+        russian = _known_category_urls("ru")
+
+        self.assertEqual(len(estonian), 20)
+        self.assertEqual(len(russian), 20)
+        self.assertTrue(all(
+            url.startswith("https://ida-toit.ee/tootekategooria/")
+            for url in estonian
+        ))
+        self.assertTrue(all(
+            url.startswith("https://ida-toit.ee/ru/tootekategooria/")
+            for url in russian
+        ))
+
 
 class BreakTimeCategorySlugTests(unittest.TestCase):
     def test_category_slug_fallback_reads_custom_theme_classes(self):
@@ -184,6 +200,49 @@ class BreakTimeHtmlTests(unittest.TestCase):
         cards = get_cards(soup)
         self.assertEqual(len(cards), 1)
         self.assertEqual(get_price(cards[0]), 8.50)
+
+    def test_popular_homepage_sections_are_excluded_from_product_cards(self):
+        soup = BeautifulSoup(
+            """
+            <main>
+              <section>
+                <h2>Populaarsed valikud</h2>
+                <ul class="products">
+                  <li class="product">
+                    <h2 class="woocommerce-loop-product__title">Popular item ET</h2>
+                    <span class="price">€4,50</span>
+                  </li>
+                </ul>
+              </section>
+              <section>
+                <h2>Популярные блюда</h2>
+                <ul class="products">
+                  <li class="product">
+                    <h2 class="woocommerce-loop-product__title">Popular item RU</h2>
+                    <span class="price">€5,00</span>
+                  </li>
+                </ul>
+              </section>
+              <section class="menu-category-products">
+                <h2>Menu products</h2>
+                <ul class="products">
+                  <li class="product">
+                    <h2 class="woocommerce-loop-product__title">Actual category item</h2>
+                    <span class="price">€7,00</span>
+                  </li>
+                </ul>
+              </section>
+            </main>
+            """,
+            "html.parser",
+        )
+
+        cards = get_cards(soup)
+        self.assertEqual(len(cards), 1)
+        self.assertEqual(
+            cards[0].select_one(".woocommerce-loop-product__title").get_text(strip=True),
+            "Actual category item",
+        )
 
     def test_ru_and_et_names_merge_when_unambiguous(self):
         russian = [{
