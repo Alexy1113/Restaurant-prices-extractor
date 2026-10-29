@@ -13,7 +13,10 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from parsers.categories import canonical_category_ru
+try:
+    from parsers.categories import canonical_category_ru
+except ModuleNotFoundError:  # Support running this parser as a standalone script.
+    from categories import canonical_category_ru
 
 
 LANGUAGE_CONFIG = {
