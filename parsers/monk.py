@@ -446,7 +446,7 @@ def get_cards(soup):
             title = get_title_element(card)
             if not title:
                 continue
-            marker = (get_name(card) or "", tuple(card.get("class", ())))
+            marker = (get_name(card) or "", tuple(card.get("class") or ()))
             if marker in seen:
                 continue
             if not (card.select_one(".ee-post__price, .price, [class*='price']") or PRICE_RE.search(card.get_text(" ", strip=True))):
