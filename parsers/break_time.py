@@ -103,7 +103,7 @@ _APPETIZER_CATEGORY_MARKERS = (
 _SAUCE_MARKERS = ("kastmed", "sauce", "соус", "соусы")
 _SALAD_MARKERS = ("salat", "салат")
 _SOUP_MARKERS = ("soup", "supi", "суп")
-_NOODLE_MARKERS = ("nuudel", "noodle", "лапша")
+_NOODLE_MARKERS = ("nuudl", "nuudel", "noodle", "лапша")
 _BREAKFAST_MARKERS = ("hommikusöök", "breakfast", "завтрак")
 _MAIN_CATEGORY_MARKERS = (
     "praad", "grill", "šaslõkk", "шашлык", "kebab", "doner", "döner",
@@ -418,7 +418,9 @@ def get_product_type(category, name):
     all_text = f"{category_text} {name_text}"
 
     def has_any(text, markers):
-        return any(marker in text for marker in markers)
+        # Product names and category constants may contain Estonian diacritics.
+        # The source text is normalized, so normalize the marker the same way.
+        return any(normalize_text(marker) in text for marker in markers)
 
     # Milkshakes/cocktails have their own shared product type, which maps to
     # the project's existing drinks category in both languages.
