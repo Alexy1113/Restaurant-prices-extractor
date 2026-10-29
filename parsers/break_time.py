@@ -25,9 +25,11 @@ LANGUAGE_URLS = {
     "et": BASE_URL,
     "ru": urljoin(BASE_URL, "ru/"),
 }
-MAX_CATALOG_PAGES = 60
-REQUEST_DELAY_SECONDS = 1.8
-MAX_REQUEST_RETRIES = 3
+MAX_CATALOG_PAGES = 40
+MAX_LANGUAGE_SECONDS = 180
+REQUEST_TIMEOUT = (5, 15)
+REQUEST_DELAY_SECONDS = 0.6
+MAX_REQUEST_RETRIES = 2
 
 HEADERS = {
     "User-Agent": (
@@ -144,7 +146,7 @@ def build_catalog_url(language):
 def _get_page(session, url):
     """Fetch a page politely and retry temporary HTTP 429 responses."""
     for attempt in range(MAX_REQUEST_RETRIES + 1):
-        response = session.get(url, timeout=30)
+        response = session.get(url, timeout=REQUEST_TIMEOUT)
         if response.status_code != 429:
             response.raise_for_status()
             # Avoid hammering the menu site while following its category pages.
@@ -667,12 +669,17 @@ def _pagination_urls(soup, current_url, language):
 def parse_language(session, language):
     """Download one language's catalog and follow pagination until exhausted."""
     initial_url = build_catalog_url(language)
+    started_at = time.monotonic()
     queue = [initial_url]
     visited_urls = set()
     seen_products = set()
     records = []
 
-    while queue and len(visited_urls) < MAX_CATALOG_PAGES:
+    while (
+        queue
+        and len(visited_urls) < MAX_CATALOG_PAGES
+        and time.monotonic() - started_at < MAX_LANGUAGE_SECONDS
+    ):
         url = queue.pop(0)
         if url in visited_urls:
             continue
@@ -755,7 +762,8 @@ def parse_language(session, language):
 
         print(
             f"[Break Time/{language}] Страница {len(visited_urls)}: "
-            f"карточек={len(cards)}, новых записей={page_record_count}"
+            f"карточек={len(cards)}, новых записей={page_record_count}",
+            flush=True,
         )
 
         for next_url in _pagination_urls(soup, url, language):
@@ -763,9 +771,14 @@ def parse_language(session, language):
                 queue.append(next_url)
 
     if queue:
+        if len(visited_urls) >= MAX_CATALOG_PAGES:
+            reason = f"лимит {MAX_CATALOG_PAGES} страниц"
+        else:
+            reason = f"лимит времени {MAX_LANGUAGE_SECONDS} секунд"
         print(
-            f"[Break Time/{language}][ВНИМАНИЕ] Достигнут лимит "
-            f"{MAX_CATALOG_PAGES} страниц; часть каталога могла не загрузиться."
+            f"[Break Time/{language}][ВНИМАНИЕ] Достигнут {reason}; "
+            "часть каталога могла не загрузиться.",
+            flush=True,
         )
 
     print(f"[Break Time/{language}] Всего уникальных записей: {len(records)}")
