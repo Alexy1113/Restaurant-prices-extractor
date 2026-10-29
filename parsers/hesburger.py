@@ -198,7 +198,7 @@ def get_product_type(category, name):
 
 
 def get_catalog_products():
-    """Загружает каталог Hesburger и извлекает названия, категории и URL."""
+    """Загружает каталог товаров Hesburger и извлекает названия, категории и URL."""
     response = requests.get(MENU_URL, headers=HEADERS, timeout=30)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, "html.parser")
@@ -212,54 +212,55 @@ def get_catalog_products():
         # Нас интересуют только отдельные страницы товаров Hesburger.
         if parsed_url.netloc and not parsed_url.netloc.endswith("hesburger.ee"):
             continue
+
         if not parsed_url.path.startswith("/tooted/"):
             continue
 
         path_parts = [part for part in parsed_url.path.split("/") if part]
+
         if len(path_parts) < 3:
             continue
 
         name_et = clean_text(link.get_text(" ", strip=True))
 
-        # Если в ссылке нет текста, попробуем взять alt или title.
+        # Если в ссылке нет текста, пробуем взять alt или title.
         if not name_et:
             image = link.find("img")
             name_et = clean_text(
-                link.get("title") or (image.get("alt", "") if image else "")
+                link.get("title")
+                or (image.get("alt", "") if image else "")
             )
 
         if not name_et:
             continue
 
-        
-    heading = link.find_previous("h2")
+        # Находим категорию товара.
+        heading = link.find_previous("h2")
 
-    if heading:
-        category_et = clean_text(
-            heading.get_text(" ", strip=True)
-        )
+        if heading:
+            category_et = clean_text(
+                heading.get_text(" ", strip=True)
+            )
 
-        # Убираем описание из названия раздела завтраков.
-        if category_et.casefold().startswith("hommikupala"):
-            category_et = "Hommikupala"
-    else:
-        category_et = "Muu"
+            if category_et.casefold().startswith("hommikupala"):
+                category_et = "Hommikupala"
+        else:
+            category_et = "Muu"
 
-
-        # Оставляем официальный URL нетронутым: у Hesburger в URL-slug
-        # некоторые эстонские буквы представлены последовательностями дефисов.
-        # Для внутреннего dish_code восстанавливаем читаемый slug из названия,
-        # только если исходный slug выглядит таким образом.
+        # Формируем внутренний код товара.
         if "--" in path_parts[-1]:
-            code_path_parts = path_parts[:-1] + [make_unicode_slug(name_et)]
+            code_path_parts = path_parts[:-1] + [
+                make_unicode_slug(name_et)
+            ]
         else:
             code_path_parts = path_parts
+
         dish_code = "hesburger:" + "/".join(code_path_parts)
 
         products.setdefault(dish_code, {
             "dish_code": dish_code,
             "dish_name": name_et,
-            "dish_name_ru": None,  # На сайте нет русского названия.
+            "dish_name_ru": None,
             "dish_name_et": name_et,
             "category_ru": None,
             "category_et": category_et,
