@@ -73,6 +73,35 @@ class BreakTimeCategoryTests(unittest.TestCase):
     def test_steak_is_not_misclassified_as_tea(self):
         self.assertEqual(get_product_type("Praad", "Steak tartare"), "main_courses")
 
+    def test_categories_seen_on_live_ida_toit_menu_map_to_shared_types(self):
+        cases = (
+            ("Alkohoolsed joogid", "Gin", "drinks"),
+            ("Burgerid", "Klassikaline Veiselihaburger", "burgers"),
+            ("Grill", "BBQ grillkanaga", "main_courses"),
+            ("Hommikusöök", "Omelett", "breakfast"),
+            ("Hot dog", "Hot dog", "main_courses"),
+            ("Joogid", "Pepsi", "drinks"),
+            ("Kuumad joogid", "Kakao", "drinks"),
+            ("Kastmed", "Küüslaugukaste", "sauces"),
+            ("Kebab", "Kebab veiselihaga", "main_courses"),
+            ("Kombineeritud", "Komplekt", "sets"),
+            ("Lavash", "Lavašš kana ja juustuga", "tortillas"),
+            ("Magustoit", "Magusad pannkoogid", "desserts"),
+            ("Nuudlid", "Nuudlid krevettidega", "noodles"),
+            ("Pannkoogid", "Magusad pannkoogid", "desserts"),
+            ("Praad", "Steak tartare", "main_courses"),
+            ("Salat", "Kanasalat", "salads"),
+            ("Shawarma", "Shawarma kanalihaga", "main_courses"),
+            ("Doner", "Döner grillkanaga", "main_courses"),
+            ("Supid", "Kanasupp", "soups"),
+            ("Suupisted", "Paneeritud krevetid", "appetizers"),
+            ("Блины", "Блины с шоколадом", "desserts"),
+            ("Закуски", "Куриные крылышки", "appetizers"),
+        )
+        for category, name, expected in cases:
+            with self.subTest(category=category, name=name):
+                self.assertEqual(get_product_type(category, name), expected)
+
     def test_drinks_sauces_and_snacks_use_existing_types(self):
         self.assertEqual(get_product_type("Alkohoolsed joogid", "Gin 0,5 l"), "drinks")
         self.assertEqual(get_product_type("Kastmed", "Küüslaugukaste"), "sauces")
