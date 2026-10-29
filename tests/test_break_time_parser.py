@@ -104,6 +104,35 @@ class BreakTimeHtmlTests(unittest.TestCase):
         self.assertEqual(result[0]["category_ru"], "Бургеры")
         self.assertEqual(result[0]["category_et"], "Burgerid")
 
+    def test_different_translated_names_match_only_at_same_position_type_and_price(self):
+        russian = [{
+            "dish_code": "break-time:site:11",
+            "source_id": "site:11",
+            "name": "Классический говяжий бургер",
+            "price": 8.5,
+            "price_variant": None,
+            "category": "Бургеры",
+            "product_type": "burgers",
+            "language": "ru",
+            "catalog_position": 4,
+        }]
+        estonian = [{
+            "dish_code": "break-time:site:111",
+            "source_id": "site:111",
+            "name": "Klassikaline veiselihaburger",
+            "price": 8.5,
+            "price_variant": None,
+            "category": "Burgerid",
+            "product_type": "burgers",
+            "language": "et",
+            "catalog_position": 4,
+        }]
+
+        result = merge_language_records(russian, estonian)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["dish_name_ru"], "Классический говяжий бургер")
+        self.assertEqual(result[0]["dish_name_et"], "Klassikaline veiselihaburger")
+
     def test_untranslated_product_with_eesti_prefix_is_matched(self):
         russian = [{
             "dish_code": "break-time:name:1",
