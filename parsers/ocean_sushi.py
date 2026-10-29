@@ -66,6 +66,10 @@ def get_product_type(category, name):
     def has_any(keywords):
         return any(keyword in text for keyword in keywords)
 
+    # Syrups are add-ons, not drinks. Match them before checking coffee words.
+    if has_any(["siirup", "syrup", "siroop", "сироп"]):
+        return "syrups"
+
     # --------------------------------------------------
     # 1. НАПИТКИ
     # Проверяем первыми, потому что напитки могут иметь
