@@ -38,10 +38,22 @@ class BreakTimeClassificationTests(unittest.TestCase):
         cases = (
             ("Lisandid", "Grillitud lõhesteik värskete köögiviljadega", "main_courses"),
             ("Lisandid", "Armeenia šašlõkk värskete köögiviljadega", "main_courses"),
+            ("Nuudlid", "Rannakarbid koores", "main_courses"),
+            ("Eelroad", "Kanaribad ahjukartuli ja köögiviljadega", "main_courses"),
         )
         for category, name, expected in cases:
             with self.subTest(name=name):
                 self.assertEqual(get_break_time_product_type(category, name), expected)
+
+    def test_onion_rings_are_appetizers_not_sides(self):
+        self.assertEqual(
+            get_break_time_product_type("Lisandid", "Sibularõngad"),
+            "appetizers",
+        )
+        self.assertEqual(
+            get_break_time_product_type("Гарниры", "Луковые кольца"),
+            "appetizers",
+        )
 
     def test_drink_words_in_food_names_do_not_override_food_product_type(self):
         self.assertEqual(

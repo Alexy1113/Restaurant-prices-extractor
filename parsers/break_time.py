@@ -142,7 +142,7 @@ _ALCOHOL_MARKERS = (
 )
 _SIDE_MARKERS = (
     "friikartul", "fries", "french fries", "kartul", "potato", "bataat",
-    "sweet potato", "картофел", "батат", "луковые кольца",
+    "sweet potato", "картофел", "батат",
 )
 _APPETIZER_CATEGORY_MARKERS = (
     "suupist", "eelroad", "закуск", "appetizer", "starter", "snack",
@@ -586,9 +586,12 @@ def get_product_type(category, name):
     if has_any(category_text, _SOUP_MARKERS) or has_any(name_text, _SOUP_MARKERS):
         return "soups"
 
+    # Mussels are listed under the site's noodle category, but the product
+    # itself is a standalone seafood main course, not a noodle dish.
+    if has_any(name_text, ("rannakarp", "mussel", "миди")):
+        return "main_courses"
+
     if has_any(category_text, _NOODLE_MARKERS) or has_any(name_text, _NOODLE_MARKERS):
-        # "Mussels" appears in the noodle section on this site, so the section
-        # label should be retained unless the item clearly belongs elsewhere.
         return "noodles"
 
     if has_any(category_text, _BREAKFAST_MARKERS):
@@ -604,6 +607,15 @@ def get_product_type(category, name):
         )
         if not has_any(name_text, protein_markers):
             return "sides"
+
+    # A substantial chicken-strip portion served with potatoes and vegetables
+    # is a main course; plain chicken strips remain an appetizer.
+    if (
+        has_any(name_text, ("kanaribad", "chicken strips", "стрипс"))
+        and has_any(name_text, _SIDE_MARKERS)
+        and has_any(name_text, ("köögivilj", "vegetable", "овощ"))
+    ):
+        return "main_courses"
 
     if (
         has_any(category_text, _APPETIZER_CATEGORY_MARKERS)
