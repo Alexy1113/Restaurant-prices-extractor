@@ -443,7 +443,7 @@ def get_product_type(category, name):
     if has_any(all_text, _ALCOHOL_MARKERS):
         return "drinks"
     if has_any(name_text, _DRINK_NAME_MARKERS) or re.search(
-        r"\\b(?:tea|tee|gin|whisky|whiskey|vodka|rum|coffee|kohv)\\b",
+        r"\b(?:tea|tee|gin|whisky|whiskey|vodka|rum|coffee|kohv)\b",
         name_text,
     ):
         return "drinks"
