@@ -1049,6 +1049,11 @@ def parse_menu():
 if __name__ == "__main__":
     for item in parse_menu():
         print(
-            f'{item["dish_name"]} | {item["price"]:.2f} € | '
-            f'{item.get("price_variant") or "—"} | {item["product_type"]}'
+            f'RU: {item.get("dish_name_ru") or "—"} | '
+            f'ET: {item.get("dish_name_et") or "—"} | '
+            f'Категории: {item.get("category_ru") or "—"} / '
+            f'{item.get("category_et") or "—"} | '
+            f'{item["price"]:.2f} € | '
+            f'{item.get("price_variant") or "—"} | '
+            f'{item["product_type"]}'
         )
