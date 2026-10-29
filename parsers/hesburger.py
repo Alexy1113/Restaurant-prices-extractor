@@ -24,9 +24,9 @@ import requests
 from bs4 import BeautifulSoup
 
 try:
-    from parsers.categories import canonical_category_ru
+    from parsers.categories import canonical_category_ru, canonical_category_et
 except ModuleNotFoundError:  # Support running this parser as a standalone script.
-    from categories import canonical_category_ru
+    from categories import canonical_category_ru, canonical_category_et
 
 try:
     from dotenv import load_dotenv
@@ -1165,6 +1165,27 @@ def parse_menu(pdf_path=None):
             LAST_PARSE_METHOD = "ocr"
 
     result = list(records.values())
+
+    # Normalize both language fields to the shared category taxonomy even when
+    # this parser is run directly with --upload, outside main.py.
+    for item in result:
+        dish_text = " ".join(
+            str(item.get(key) or "")
+            for key in ("dish_name_ru", "dish_name_et", "dish_name")
+        )
+        item["category_ru"] = canonical_category_ru(
+            item.get("product_type"),
+            category_ru=item.get("category_ru"),
+            category_et=item.get("category_et"),
+            dish_name=dish_text,
+        )
+        item["category_et"] = canonical_category_et(
+            item.get("product_type"),
+            category_ru=item.get("category_ru"),
+            category_et=item.get("category_et"),
+            dish_name=dish_text,
+        )
+
     LAST_PARSE_WARNINGS.clear()
     LAST_PARSE_WARNINGS.extend(warnings)
 
