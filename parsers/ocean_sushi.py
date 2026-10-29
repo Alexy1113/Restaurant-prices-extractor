@@ -247,6 +247,19 @@ def get_product_type(category, name):
     return "other"
 
 
+def normalize_baked_category_et(category, product_type):
+    """Use Ocean Sushi's existing Estonian roll category for baked rolls."""
+    category_text = str(category or "").casefold()
+    is_baked_section = any(
+        marker in category_text
+        for marker in ("запеч", "baked", "küpset")
+    )
+    if product_type == "sushi_rolls" and is_baked_section:
+        # Ordinary Ocean Sushi rolls are listed under "Maki" in Estonian.
+        return "Maki"
+    return category
+
+
 def get_price(card):
     for selector in [
         ".ee-post__price",
@@ -663,6 +676,9 @@ def parse_menu():
                 f"{category_ru or ''} {category_et or ''}",
                 f"{name_ru or ''} {name_et or ''}"
             )
+            # Keep the original Estonian category consistent with the normal
+            # roll section: baked rolls should be "Maki", not "Küpsetatud".
+            category_et = normalize_baked_category_et(category_et, product_type)
             category_ru = canonical_category_ru(
                 product_type,
                 category_ru=category_ru,
