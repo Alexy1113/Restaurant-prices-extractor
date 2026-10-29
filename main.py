@@ -277,35 +277,47 @@ def run_parser(parser_function, restaurant_name):
 
 
 def main():
-    """Последовательно обновляет меню Ocean Sushi, Hesburger и Monk Jõhvi."""
+    """Обновляет меню выбранного ресторана или всех ресторанов."""
     parser = argparse.ArgumentParser(description="Мониторинг цен ресторанов")
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Только запустить парсеры и показать количество записей, не изменяя Supabase.",
     )
+    parser.add_argument(
+        "--restaurant",
+        choices=("all", "ocean", "hesburger", "monk"),
+        default="all",
+        help="Какой ресторан обрабатывать: all (по умолчанию), ocean, hesburger или monk.",
+    )
     args = parser.parse_args()
+
+    restaurant_parsers = {
+        "ocean": (parse_ocean, "Ocean Sushi Jõhvi"),
+        "hesburger": (parse_hesburger, "Hesburger"),
+        "monk": (parse_monk, "Monk Jõhvi"),
+    }
+    selected_parsers = (
+        list(restaurant_parsers.items())
+        if args.restaurant == "all"
+        else [(args.restaurant, restaurant_parsers[args.restaurant])]
+    )
 
     print("=== ЗАПУСК МОНИТОРИНГА ЦЕН ===")
     if args.dry_run:
         print("[Main] Режим dry-run: данные в Supabase записываться не будут.")
-        for parser_function, restaurant_name in (
-            (parse_ocean, "Ocean Sushi Jõhvi"),
-            (parse_hesburger, "Hesburger"),
-            (parse_monk, "Monk Jõhvi"),
-        ):
-            print(f"\n[Main] Запускаю парсер: {restaurant_name}")
+        for _, (parser_function, restaurant_name) in selected_parsers:
+            print(f"\\n[Main] Запускаю парсер: {restaurant_name}")
             try:
                 data = parser_function()
                 print(f"[Main] {restaurant_name}: получено записей — {len(data or [])}; запись в Supabase пропущена.")
             except Exception as e:
                 print(f"[Ошибка] Парсер {restaurant_name} завершился с ошибкой: {e}")
     else:
-        run_parser(parse_ocean, "Ocean Sushi Jõhvi")
-        run_parser(parse_hesburger, "Hesburger")
-        run_parser(parse_monk, "Monk Jõhvi")
+        for _, (parser_function, restaurant_name) in selected_parsers:
+            run_parser(parser_function, restaurant_name)
 
-    print("\n=== МОНИТОРИНГ ЗАВЕРШЁН ===")
+    print("\\n=== МОНИТОРИНГ ЗАВЕРШЁН ===")
 
 
 # Запускать main() только при запуске этого файла напрямую.
