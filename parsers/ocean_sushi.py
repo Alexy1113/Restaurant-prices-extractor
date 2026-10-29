@@ -70,7 +70,7 @@ def get_product_type(category, name):
 
     def has_whole_word(keywords):
         return any(
-            re.search(rf"(?<!\\w){re.escape(keyword)}(?!\\w)", text)
+            re.search(rf"(?<!\w){re.escape(keyword)}(?!\w)", text)
             for keyword in keywords
         )
 
