@@ -532,8 +532,60 @@ def find_alternate_category_url(soup, target_language):
     candidates.sort(key=lambda item: item[0])
     return candidates[0][1]
 
-def get_category_pair_key(soup, current_url, language):
-    """Returns the same category key from both language versions when possible."""
+CATEGORY_PAIR_LABELS = {
+    # Russian and Estonian section headings map to a shared matching key.
+    "суши": "sushi",
+    "sushid": "sushi",
+    "закуски": "appetizers",
+    "eelroad": "appetizers",
+    "блюда на сковороде": "sizzlers",
+    "panniroad": "sizzlers",
+    "хлеб": "bread",
+    "leivad": "bread",
+    "весенние рулеты и врапы": "spring-wraps",
+    "kevadrullid wrapid": "spring-wraps",
+    "салаты": "salads",
+    "salatid": "salads",
+    "супы": "soups",
+    "supid": "soups",
+    "утиные курсы": "duck",
+    "утиные блюда": "duck",
+    "pardilihatoidud": "duck",
+    "блюда из баранины": "lamb",
+    "lambalihatoidud": "lamb",
+    "говядина": "beef",
+    "loomalihatoidud": "beef",
+    "рыба и морепродукты": "fish-seafood",
+    "kala mereannid": "fish-seafood",
+    "вегетарианские блюда": "vegetarian",
+    "taimetoidud": "vegetarian",
+    "рис": "rice",
+    "riis": "rice",
+    "лапша": "noodles",
+    "nuudlid": "noodles",
+    "паста и бириани": "pasta-biryani",
+    "pasta": "pasta-biryani",
+    "десерты": "desserts",
+    "magustoidud": "desserts",
+    "детское меню": "children",
+    "lastemenuu": "children",
+    "блюда из курицы": "chicken",
+    "kanalihatoidud": "chicken",
+}
+
+
+def canonical_category_pair_key(category):
+    return CATEGORY_PAIR_LABELS.get(normalize_key(category))
+
+
+def get_category_pair_key(soup, current_url, language, category=None):
+    """Returns a stable key for a category across the Russian and Estonian menus."""
+    # Most category labels have a direct Russian/Estonian equivalent, so don't
+    # depend on the language switcher being present in the page HTML.
+    shared_category = canonical_category_pair_key(category)
+    if shared_category:
+        return f"category:{shared_category}"
+
     other_language = "et" if language == "ru" else "ru"
     alternate_url = find_alternate_category_url(soup, other_language)
 
@@ -683,7 +735,7 @@ def parse_category(session, page, language="ru"):
 
     soup = BeautifulSoup(response.text, "html.parser")
     category = get_category_from_page(soup, page.get("label"))
-    category_pair_key = get_category_pair_key(soup, url, language)
+    category_pair_key = get_category_pair_key(soup, url, language, category)
     cards = get_cards(soup)
     records = []
 
