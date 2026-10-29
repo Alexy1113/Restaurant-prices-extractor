@@ -35,10 +35,10 @@ CATEGORY_RU_BY_PRODUCT_TYPE = {
 }
 
 _ALCOHOL_RE = re.compile(
-    r"(?:18\\s*\\+|\\b(?:вино|вин[ао]|шампан\\w*|игрист\\w*|слабоалког\\w*|алкогол\\w*|"
-    r"wine|champagne|sparkling|beer|bier|õlu|vein\\w*|vahuvein\\w*|siider|cider|"
+    r"(?:18\s*\+|\b(?:вино|вин[ао]|шампан\w*|игрист\w*|слабоалког\w*|алкогол\w*|"
+    r"wine|champagne|sparkling|beer|bier|õlu|vein\w*|vahuvein\w*|siider|cider|"
     r"vodka|whisk(?:y|ey)|rum|tequila|prosecco|moscato|pinot|sinebrychoff|"
-    r"somersby|saku|raasiku|maschio|gin tonic)\\b|\\bgin\\b)",
+    r"somersby|saku|raasiku|maschio|gin tonic)\b|\bgin\b)",
     re.IGNORECASE,
 )
 _ALCOHOL_PRODUCT_TYPES = {"alcoholic_drinks", "alcoholicdrinks"}
@@ -135,14 +135,14 @@ def _is_drink_like(source_text, product_type=None):
 
     drink_pattern = re.compile(
         r"(?:"
-        r"\\b(?:drink|drinks|beverage|beverages|coffee|espresso|cappuccino|"
+        r"\b(?:drink|drinks|beverage|beverages|coffee|espresso|cappuccino|"
         r"latte|tea|lemonade|cocktail|milkshake|shake|soda|cola|fanta|sprite|"
         r"beer|bier|wine|vodka|whisky|whiskey|rum|gin|prosecco|"
-        r"hot drinks?)\\b|"
-        r"\\b(?:joog\\w*|jook|kohv\\w*|tee|limonaad\\w*|kokteil\\w*|"
-        r"alkohol\\w*|alcohol\\w*|õlu|vein\\w*|vahuvein\\w*|siider|cider)\\b|"
-        r"\\b(?:напит\\w*|горяч\\w* напит\\w*|коктейл\\w*|алкогол\\w*|"
-        r"пив\\w*|вин\\w*|ча\\w*|кофе|сок\\w*|молочн\\w* коктейл\\w*)\\b|"
+        r"hot drinks?)\b|"
+        r"\b(?:joog\w*|jook|kohv\w*|tee|limonaad\w*|kokteil\w*|"
+        r"alkohol\w*|alcohol\w*|õlu|vein\w*|vahuvein\w*|siider|cider)\b|"
+        r"\b(?:напит\w*|горяч\w* напит\w*|коктейл\w*|алкогол\w*|"
+        r"пив\w*|вин\w*|ча\w*|кофе|сок\w*|молочн\w* коктейл\w*)\b|"
         r"jäätisekokteil|milk shake"
         r")",
         re.IGNORECASE,
