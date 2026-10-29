@@ -74,7 +74,7 @@ KNOWN_CATEGORY_PATHS = (
     "eine",
     "hommikusook",
     "praad",
-    "lavash",
+    "lavas",
     "salat",
     "hot-dog",
     "kebab",
