@@ -1,4 +1,5 @@
 
+import hashlib
 import re
 import requests
 from bs4 import BeautifulSoup
@@ -504,7 +505,10 @@ def parse_menu():
                 continue
 
             items.sort(key=size_sort_key)
-            base_slug = make_variant_slug(product_name)
+            # Hashing also works for names written in Cyrillic or with diacritics.
+            base_slug = "item-" + hashlib.sha1(
+                product_name.casefold().encode("utf-8")
+            ).hexdigest()[:12]
             for index, item in enumerate(items):
                 if index == 0:
                     item["output_dish_code"] = None
