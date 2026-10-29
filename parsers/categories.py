@@ -164,8 +164,13 @@ def canonical_category_ru(
     source_categories = f"{russian_category} {estonian_category}"
     source_text = f"{source_categories} {dish_name}"
 
-    # All beverage-like rows are normalized into a single shared category.
-    if _is_drink_like(source_text, product_type):
+    # Explicit food product types are authoritative. A drink mentioned in a
+    # combo or food name must not turn the entire item into a beverage.
+    is_drink = (
+        product_type in _DRINK_PRODUCT_TYPES
+        or (product_type == "other" and _is_drink_like(source_categories))
+    )
+    if is_drink:
         if _is_alcoholic(source_text, product_type):
             return "Алкогольные напитки (18+)"
         return "Напитки"
@@ -213,9 +218,14 @@ def canonical_category_et(
     source_categories = f"{russian_category} {estonian_category}"
     source_text = f"{source_categories} {dish_name}"
 
-    # All beverage-like rows are normalized into a single shared category.
-    if _is_drink_like(source_text, product_type):
-        if _ALCOHOL_RE.search(source_categories):
+    # Explicit food product types are authoritative. A drink mentioned in a
+    # combo or food name must not turn the entire item into a beverage.
+    is_drink = (
+        product_type in _DRINK_PRODUCT_TYPES
+        or (product_type == "other" and _is_drink_like(source_categories))
+    )
+    if is_drink:
+        if _is_alcoholic(source_text, product_type):
             return "Alkohoolsed joogid (18+)"
         return "Joogid"
 
