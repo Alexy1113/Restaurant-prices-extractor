@@ -49,6 +49,27 @@ class BreakTimeCategoryTests(unittest.TestCase):
         self.assertEqual(get_product_type("Kebab", "Kebab veiselihaga"), "main_courses")
         self.assertEqual(get_product_type("Hot dog", "Hot dog lavas"), "main_courses")
 
+    def test_ice_cream_cocktails_map_to_existing_drinks_category(self):
+        self.assertEqual(
+            get_product_type("Kokteilid", "Jäätisekokteil maasikaga"),
+            "ice_cream_shakes",
+        )
+        self.assertEqual(
+            canonical_category_ru("ice_cream_shakes", category_et="Kokteilid"),
+            "Напитки",
+        )
+        self.assertEqual(
+            canonical_category_et(
+                "ice_cream_shakes",
+                category_ru="Напитки",
+                category_et="Kokteilid",
+            ),
+            "Joogid",
+        )
+
+    def test_steak_is_not_misclassified_as_tea(self):
+        self.assertEqual(get_product_type("Praad", "Steak tartare"), "main_courses")
+
     def test_drinks_sauces_and_snacks_use_existing_types(self):
         self.assertEqual(get_product_type("Alkohoolsed joogid", "Gin 0,5 l"), "drinks")
         self.assertEqual(get_product_type("Kastmed", "Küüslaugukaste"), "sauces")
