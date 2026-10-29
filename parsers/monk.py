@@ -270,7 +270,10 @@ def get_product_type(category, name):
     if any(word in name_text for word in ("wrap", "tortilla", "тортиль", "врап")):
         return "tortillas"
 
-    if any(word in name_text for word in ("spring roll", "spring rolls", "kevadrull", "весенний рулет")):
+    if any(word in name_text for word in (
+        "spring roll", "spring rolls", "kevadrull", "весенний рулет",
+        "спринг-ролл", "спринг ролл"
+    )):
         return "appetizers"
 
     if any(word in all_text for word in ("ролл", "маки", "суши", "sushi", "maki", "roll", "rull", "сашими", "nigiri")):
