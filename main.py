@@ -47,7 +47,7 @@ def normalize_match_name(value):
     """Normalizes dish names for safe fallback matching across code changes."""
     text = unicodedata.normalize("NFKD", str(value or "").casefold())
     text = "".join(char for char in text if not unicodedata.combining(char))
-    return " ".join(re.findall(r"[a-z0-9]+", text))
+    return " ".join(re.findall(r"[^\\W_]+", text, flags=re.UNICODE))
 
 
 def normalize_variant_key(value):
@@ -76,7 +76,7 @@ def stored_variant_key(row):
     return ""
 
 
-def matching_existing_rows(rows, dish, restaurant_name):
+def matching_existing_rows(rows, dish):
     """Finds exact-name, exact-variant rows without guessing between sizes."""
     incoming_names = {
         normalize_match_name(dish.get(key))
@@ -165,7 +165,7 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
                     .execute()
                 )
                 candidates = matching_existing_rows(
-                    restaurant_rows_response.data or [], dish, restaurant_name
+                    restaurant_rows_response.data or [], dish
                 )
 
                 if len(candidates) == 1:
