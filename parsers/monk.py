@@ -458,8 +458,8 @@ def find_alternate_category_url(soup, target_language):
     """Looks for the same category linked by the site's language switcher."""
     config = LANGUAGE_CONFIG[target_language]
     expected_prefix = config["base_path"]
-
     candidates = []
+
     for link in soup.select("a[href], link[href]"):
         href = link.get("href", "")
         if not href:
@@ -489,13 +489,20 @@ def find_alternate_category_url(soup, target_language):
             clean_text(link.get_text(" ", strip=True)),
         ]).casefold()
 
-        # Prefer explicit language metadata, then language-switcher controls.
-        priority = 0 if declared_lang.startswith(target_language) else (
-            1 if any(token in attrs for token in (
-                target_language, "eesti", "estonian", "estonia",
-                "русский", "russian", "english", "inglise"
-            )) else 2
+        # Don't accidentally use an ordinary category link as a language switch.
+        # Prefer metadata, language labels, or common multilingual-menu classes.
+        has_language_marker = (
+            declared_lang.startswith(target_language)
+            or any(token in attrs for token in (
+                "lang-item", "language", "switcher", "wpml", "polylang",
+                "eesti", "estonian", "et-ee", "русский", "russian",
+                "english", "inglise", "flag-icon"
+            ))
         )
+        if not has_language_marker:
+            continue
+
+        priority = 0 if declared_lang.startswith(target_language) else 1
         candidates.append((priority, clean_url(url)))
 
     if not candidates:
@@ -503,7 +510,6 @@ def find_alternate_category_url(soup, target_language):
 
     candidates.sort(key=lambda item: item[0])
     return candidates[0][1]
-
 
 def get_category_pair_key(soup, current_url, language):
     """Returns the same category key from both language versions when possible."""
@@ -587,13 +593,9 @@ def get_category_pages(session, language="ru"):
     return list(pages.values())
 
 def get_card_identifier(card):
-    """Tries to extract a stable product/SKU ID shared by language versions."""
+    """Tries to extract a stable product/SKU ID from a product card."""
     if card is None:
         return None
-
-    nodes = [card]
-    for parent in list(card.parents)[:2]:
-        nodes.append(parent)
 
     id_attributes = (
         "data-product_id", "data-product-id", "data-productid",
@@ -604,32 +606,30 @@ def get_card_identifier(card):
         re.compile(r"(?:^|\s)(?:post|product|product-id|postid|ee-post)[_-](\d+)(?:\s|$)", re.I),
     )
 
-    for node in nodes:
-        for attr in id_attributes:
-            value = clean_text(node.get(attr, ""))
-            if value and re.fullmatch(r"[A-Za-z0-9_-]{2,80}", value):
-                return f"site:{value.casefold()}"
+    for attr in id_attributes:
+        value = clean_text(card.get(attr, ""))
+        if value and re.fullmatch(r"[A-Za-z0-9_-]{2,80}", value):
+            return f"site:{value.casefold()}"
 
-        candidates = [clean_text(node.get("id", ""))]
-        classes = node.get("class", [])
-        if isinstance(classes, str):
-            classes = classes.split()
-        candidates.extend(classes)
+    candidates = [clean_text(card.get("id", ""))]
+    classes = card.get("class", [])
+    if isinstance(classes, str):
+        classes = classes.split()
+    candidates.extend(classes)
 
-        for candidate in candidates:
-            for pattern in id_patterns:
-                match = pattern.search(candidate)
-                if match:
-                    return f"site:{match.group(1)}"
-
-        for link in node.select("a[href]") if hasattr(node, "select") else []:
-            href = link.get("href", "")
-            match = re.search(r"[?&](?:product_id|post_id|p)=(\d+)(?:&|$)", href, re.I)
+    for candidate in candidates:
+        for pattern in id_patterns:
+            match = pattern.search(candidate)
             if match:
                 return f"site:{match.group(1)}"
 
-    return None
+    for link in card.select("a[href]"):
+        href = link.get("href", "")
+        match = re.search(r"[?&](?:product_id|post_id|p)=(\d+)(?:&|$)", href, re.I)
+        if match:
+            return f"site:{match.group(1)}"
 
+    return None
 
 def get_stable_base_code(name, card=None):
     """Uses a site product ID when available, otherwise a stable name hash."""
