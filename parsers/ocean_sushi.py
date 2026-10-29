@@ -90,6 +90,9 @@ def get_product_type(category, name):
         for marker in ("запеч", "baked", "küpset")
     )
     if is_baked_section:
+        # Preserve the more specific type for baked gunkans; they are not rolls.
+        if has_any(["гункан", "gunkan"]):
+            return "gunkan"
         return "sushi_rolls"
 
     # --------------------------------------------------
