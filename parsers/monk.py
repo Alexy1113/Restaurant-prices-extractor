@@ -14,9 +14,9 @@ import requests
 from bs4 import BeautifulSoup
 
 try:
-    from parsers.categories import canonical_category_ru
+    from parsers.categories import canonical_category_ru, canonical_category_et
 except ModuleNotFoundError:  # Support running this parser as a standalone script.
-    from categories import canonical_category_ru
+    from categories import canonical_category_ru, canonical_category_et
 
 
 LANGUAGE_CONFIG = {
@@ -1090,17 +1090,25 @@ def merge_language_records(russian_records, estonian_records):
                 "product_type": row.get("product_type"),
             })
 
-    # Canonicalize Russian display categories for cross-restaurant filters.
-    # category_et preserves the source site's more detailed section label.
+    # Canonicalize both languages to the same shared category taxonomy.
+    # Source-site subcategories (e.g. the three alcohol labels) must not remain
+    # as separate Estonian categories when Russian shows one combined category.
     for row in result:
+        dish_text = " ".join(
+            str(row.get(key) or "")
+            for key in ("dish_name_ru", "dish_name_et", "dish_name")
+        )
         row["category_ru"] = canonical_category_ru(
             row.get("product_type"),
             category_ru=row.get("category_ru"),
             category_et=row.get("category_et"),
-            dish_name=" ".join(
-                str(row.get(key) or "")
-                for key in ("dish_name_ru", "dish_name_et", "dish_name")
-            ),
+            dish_name=dish_text,
+        )
+        row["category_et"] = canonical_category_et(
+            row.get("product_type"),
+            category_ru=row.get("category_ru"),
+            category_et=row.get("category_et"),
+            dish_name=dish_text,
         )
 
     paired_count = len(used_ru)
