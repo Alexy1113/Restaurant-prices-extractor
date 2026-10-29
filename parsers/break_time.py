@@ -539,14 +539,19 @@ def _catalog_context(url):
         segments = segments[1:]
 
     category_key = "shop"
-    if "tootekategooria" in [part.casefold() for part in segments]:
-        index = [part.casefold() for part in segments].index("tootekategooria")
-        if index + 1 < len(segments):
-            category_key = segments[index + 1].casefold()
-    elif "product-category" in [part.casefold() for part in segments]:
-        index = [part.casefold() for part in segments].index("product-category")
-        if index + 1 < len(segments):
-            category_key = segments[index + 1].casefold()
+    lowered_segments = [part.casefold() for part in segments]
+    category_index = None
+    if "tootekategooria" in lowered_segments:
+        category_index = lowered_segments.index("tootekategooria")
+    elif "product-category" in lowered_segments:
+        category_index = lowered_segments.index("product-category")
+
+    if category_index is not None and category_index + 1 < len(segments):
+        category_segments = segments[category_index + 1:]
+        if "page" in [part.casefold() for part in category_segments]:
+            page_index = [part.casefold() for part in category_segments].index("page")
+            category_segments = category_segments[:page_index]
+        category_key = "/".join(category_segments).casefold() or "shop"
 
     page_number = 1
     lowered_segments = [part.casefold() for part in segments]
