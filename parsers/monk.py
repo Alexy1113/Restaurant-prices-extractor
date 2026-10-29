@@ -21,8 +21,8 @@ LANGUAGE_CONFIG = {
         "legacy_url": "https://monkrestoran.ee/johvi-rus/",
     },
     "et": {
-        "base_url": "https://monkrestoran.ee/et/monk-johvi-2/",
-        "base_path": "/et/monk-johvi-2/",
+        "base_url": "https://monkrestoran.ee/monk-johvi/",
+        "base_path": "/monk-johvi/",
         "legacy_url": None,
     },
 }
@@ -80,7 +80,29 @@ QUANTITY_RE = re.compile(
 
 # These links are used if the site's category navigation cannot be discovered.
 # The live navigation is also read, so new sections (for example chicken dishes)
-# are picked up automatically.
+# are picked up automatically. Russian URLs were supplied by the user; Estonian
+# URLs follow Monk's current public routes (without an /et/ prefix).
+FALLBACK_CATEGORY_URLS_ET = [
+    "https://monkrestoran.ee/monk-johvi/sushid/",
+    "https://monkrestoran.ee/monk-johvi/eelroad/",
+    "https://monkrestoran.ee/monk-johvi/panniroad/",
+    "https://monkrestoran.ee/monk-johvi/leivad/",
+    "https://monkrestoran.ee/monk-johvi/kevadrullid-wrapid/",
+    "https://monkrestoran.ee/monk-johvi/salatid/",
+    "https://monkrestoran.ee/monk-johvi/supid/",
+    "https://monkrestoran.ee/monk-johvi/pardilihatoidud/",
+    "https://monkrestoran.ee/monk-johvi/lambalihatoidud/",
+    "https://monkrestoran.ee/monk-johvi/loomalihatoidud/",
+    "https://monkrestoran.ee/monk-johvi/kala-mereannid/",
+    "https://monkrestoran.ee/monk-johvi/taimetoidud/",
+    "https://monkrestoran.ee/monk-johvi/riis/",
+    "https://monkrestoran.ee/monk-johvi/nuudlid/",
+    "https://monkrestoran.ee/monk-johvi/pasta/",
+    "https://monkrestoran.ee/monk-johvi/magustoidud/",
+    "https://monkrestoran.ee/monk-johvi/lastemenuu/",
+    "https://monkrestoran.ee/monk-johvi/kanalihatoidud/",
+]
+
 FALLBACK_CATEGORY_URLS = [
     "https://monkrestoran.ee/ru/monk-johvi-2/d181d183d188d0b8/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b7d0b0d0bad183d181d0bad0b8/",
@@ -575,9 +597,11 @@ def get_category_pages(session, language="ru"):
     # Known Russian category URLs are a fallback. For Estonian, try their
     # matching paths too; if the site localizes slugs, the live navigation
     # above will supply the correct links.
-    fallback_urls = FALLBACK_CATEGORY_URLS
-    if language == "et":
-        fallback_urls = [url.replace("/ru/", "/et/", 1) for url in FALLBACK_CATEGORY_URLS]
+    fallback_urls = (
+        FALLBACK_CATEGORY_URLS_ET
+        if language == "et"
+        else FALLBACK_CATEGORY_URLS
+    )
 
     if not pages:
         for url in fallback_urls:
