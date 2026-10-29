@@ -35,16 +35,16 @@ CATEGORY_RU_BY_PRODUCT_TYPE = {
 }
 
 _ALCOHOL_RE = re.compile(
-    r"(?:18\\s*\\+|вино|вин[ао]|шампан|игрист|слабоалког|алкогол|"
+    r"(?:18\s*\+|вино|вин[ао]|шампан|игрист|слабоалког|алкогол|"
     r"wine|champagne|sparkling|beer|bier|õlu|vein|vahuvein|siider|cider|"
     r"vodka|whisk(?:y|e)y|rum|tequila|prosecco|moscato|pinot|sinebrychoff|"
     r"somersby|saku|raasiku|maschio|gin tonic)",
     re.IGNORECASE,
 )
-_SUSHI_CATEGORY_RE = re.compile(r"\\b(?:суши|sushi)\\b", re.IGNORECASE)
+_SUSHI_CATEGORY_RE = re.compile(r"\b(?:суши|sushi)\b", re.IGNORECASE)
 _ROLL_RE = re.compile(
-    r"(?:\\brolls?\\b|\\brull\\w*|\\bmaki\\b|\\bhosomaki\\b|"
-    r"\\buramaki\\b|\\bfutomaki\\b|ролл|\\bмаки\\b|хосомаки)",
+    r"(?:\brolls?\b|\brull\w*|\bmaki\b|\bhosomaki\b|"
+    r"\buramaki\b|\bfutomaki\b|ролл|\bмаки\b|хосомаки)",
     re.IGNORECASE,
 )
 
