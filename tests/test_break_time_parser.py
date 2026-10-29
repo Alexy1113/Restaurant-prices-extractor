@@ -102,6 +102,20 @@ class BreakTimeCategoryTests(unittest.TestCase):
             with self.subTest(category=category, name=name):
                 self.assertEqual(get_product_type(category, name), expected)
 
+    def test_estonian_category_matching_normalizes_diacritics(self):
+        self.assertEqual(
+            get_product_type("Hommikusöök", "Omlett"),
+            "breakfast",
+        )
+        self.assertEqual(
+            get_product_type("Nuudlid", "Nuudlid krevettidega"),
+            "noodles",
+        )
+        self.assertEqual(
+            get_product_type("Magustoit", "Jäätisetort"),
+            "desserts",
+        )
+
     def test_drinks_sauces_and_snacks_use_existing_types(self):
         self.assertEqual(get_product_type("Alkohoolsed joogid", "Gin 0,5 l"), "drinks")
         self.assertEqual(get_product_type("Kastmed", "Küüslaugukaste"), "sauces")
