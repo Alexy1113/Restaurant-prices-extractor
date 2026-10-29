@@ -49,6 +49,66 @@ _ROLL_RE = re.compile(
 )
 
 
+# Shared Estonian labels corresponding to the canonical Russian categories.
+# category_et stores this app taxonomy, not the menu's original section heading.
+CATEGORY_ET_BY_PRODUCT_TYPE = {
+    "main_courses": "Pearoad",
+    "bowls": "Bowls",
+    "burgers": "Burgerid",
+    "tortillas": "Tortillad",
+    "breakfast": "Hommikusöögid",
+    "salads": "Salatid",
+    "appetizers": "Eelroad",
+    "sides": "Lisandid",
+    "sauces": "Kastmed",
+    "drinks": "Joogid",
+    "desserts": "Magustoidud",
+    "sushi_rolls": "Maki",
+    "hosomaki": "Maki",
+    "nigiri": "Nigiri",
+    "sashimi": "Sashimi",
+    "gunkan": "Gunkanid",
+    "sets": "Komplektid",
+    "inari": "Inari",
+    "soups": "Supid",
+    "noodles": "Nuudlid",
+    "dumplings": "Pelmeenid ja dim sum",
+    "syrups": "Siirupid",
+    "ice_cream_shakes": "Joogid",
+    "campaigns": "Kampaaniad",
+    "other": "Muu",
+}
+
+CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
+    "основные блюда": "Pearoad",
+    "боулы": "Bowls",
+    "бургеры": "Burgerid",
+    "тортильи": "Tortillad",
+    "завтраки": "Hommikusöögid",
+    "салаты": "Salatid",
+    "закуски": "Eelroad",
+    "гарниры": "Lisandid",
+    "соусы": "Kastmed",
+    "напитки": "Joogid",
+    "алкогольные напитки (18+)": "Alkohoolsed joogid (18+)",
+    "десерты": "Magustoidud",
+    "роллы": "Maki",
+    "нигири": "Nigiri",
+    "сашими": "Sashimi",
+    "гунканы": "Gunkanid",
+    "сеты": "Komplektid",
+    "инари": "Inari",
+    "супы": "Supid",
+    "лапша": "Nuudlid",
+    "пельмени и дим-сам": "Pelmeenid ja dim sum",
+    "сиропы": "Siirupid",
+    "акции": "Kampaaniad",
+    "темпура": "Tempura",
+    "другое": "Muu",
+    "без категории": "Muu",
+}
+
+
 def canonical_category_ru(
     product_type,
     category_ru=None,
@@ -90,3 +150,51 @@ def canonical_category_ru(
         product_type,
         russian_category or "Другое",
     )
+
+
+
+def canonical_category_et(
+    product_type,
+    category_ru=None,
+    category_et=None,
+    dish_name=None,
+):
+    """Return the Estonian equivalent of the shared canonical category taxonomy."""
+    product_type = str(product_type or "other").strip().casefold()
+    russian_category = " ".join(str(category_ru or "").split()).strip()
+    estonian_category = " ".join(str(category_et or "").split()).strip()
+    dish_name = " ".join(str(dish_name or "").split()).strip()
+    source_categories = f"{russian_category} {estonian_category}"
+    source_text = f"{source_categories} {dish_name}"
+
+    # Merge wine, champagne, beer and other alcoholic subcategories into one
+    # Estonian label, matching the Russian "Алкогольные напитки (18+)" group.
+    if product_type in {"drinks", "ice_cream_shakes"}:
+        if _ALCOHOL_RE.search(source_categories):
+            return "Alkohoolsed joogid (18+)"
+        return "Joogid"
+
+    # Tempura remains distinct unless the menu/name identifies a sushi roll.
+    if product_type == "tempura":
+        if _SUSHI_CATEGORY_RE.search(source_categories) or _ROLL_RE.search(source_text):
+            return "Maki"
+        return "Tempura"
+
+    mapped = CATEGORY_ET_BY_PRODUCT_TYPE.get(product_type)
+    if mapped:
+        return mapped
+
+    # If the Russian category is already canonical, translate that exact label.
+    mapped_from_ru = CATEGORY_ET_BY_RUSSIAN_CATEGORY.get(
+        russian_category.casefold()
+    )
+    if mapped_from_ru:
+        return mapped_from_ru
+
+    # Unknown source categories are retained rather than guessed or discarded.
+    if estonian_category and estonian_category.casefold() not in {
+        "muu", "other", "без категории", "без категории ", "другое"
+    }:
+        return estonian_category
+
+    return "Muu"
