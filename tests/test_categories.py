@@ -1,12 +1,9 @@
 """Regression tests for the shared restaurant category taxonomy."""
 import unittest
 
-from parsers.categories import canonical_category_ru
+from parsers.categories import canonical_category_ru, canonical_category_et
 from parsers.monk import get_product_type as get_monk_product_type
-from parsers.ocean_sushi import (
-    get_product_type,
-    normalize_baked_category_et,
-)
+from parsers.ocean_sushi import get_product_type
 
 
 class CategoryNormalizationTests(unittest.TestCase):
@@ -32,6 +29,52 @@ class CategoryNormalizationTests(unittest.TestCase):
             canonical_category_ru("drinks", "Игристое вино и шампанское (18+)"),
             "Алкогольные напитки (18+)",
         )
+
+    def test_estonian_alcohol_subcategories_merge_like_russian_category(self):
+        source_categories = (
+            "Lahja alkohol (18+)",
+            "Vein (18+)",
+            "Vahuvein ja šampanja (18+)",
+        )
+        for source_category in source_categories:
+            with self.subTest(source_category=source_category):
+                self.assertEqual(
+                    canonical_category_et(
+                        "drinks",
+                        category_ru="Алкогольные напитки (18+)",
+                        category_et=source_category,
+                    ),
+                    "Alkohoolsed joogid (18+)",
+                )
+
+        self.assertEqual(
+            canonical_category_et("drinks", category_ru="Напитки", category_et="Joogid"),
+            "Joogid",
+        )
+
+    def test_estonian_categories_follow_shared_russian_category_taxonomy(self):
+        cases = (
+            ("main_courses", "Основные блюда", "Põhiroad"),
+            ("appetizers", "Закуски", "Eelroad"),
+            ("sides", "Гарниры", "Lisandid"),
+            ("salads", "Салаты", "Salatid"),
+            ("desserts", "Десерты", "Magustoidud"),
+            ("sushi_rolls", "Роллы", "Maki"),
+            ("gunkan", "Гунканы", "Gunkanid"),
+            ("sets", "Сеты", "Komplektid"),
+            ("soups", "Супы", "Supid"),
+            ("noodles", "Лапша", "Nuudlid"),
+        )
+        for product_type, category_ru, expected_et in cases:
+            with self.subTest(product_type=product_type):
+                self.assertEqual(
+                    canonical_category_et(
+                        product_type,
+                        category_ru=category_ru,
+                        category_et="Küpsetatud",
+                    ),
+                    expected_et,
+                )
 
     def test_standalone_tempura_stays_separate(self):
         self.assertEqual(
@@ -86,16 +129,29 @@ class CategoryNormalizationTests(unittest.TestCase):
                     "Роллы",
                 )
                 self.assertEqual(
-                    normalize_baked_category_et(category, product_type),
+                    canonical_category_et(
+                        product_type,
+                        category_ru="Роллы",
+                        category_et=category,
+                        dish_name=name,
+                    ),
                     "Maki",
                 )
 
-        # A baked gunkan is not a roll and must keep its specific category.
+        # A baked gunkan maps to the regular gunkan category in Estonian.
         self.assertEqual(
-            normalize_baked_category_et("Küpsetatud Gunkan", "gunkan"),
-            "Küpsetatud Gunkan",
+            canonical_category_et(
+                "gunkan",
+                category_ru="Гунканы",
+                category_et="Küpsetatud Gunkan",
+                dish_name="Lõhe Gunkan",
+            ),
+            "Gunkanid",
         )
-        self.assertEqual(normalize_baked_category_et("Maki", "sushi_rolls"), "Maki")
+        self.assertEqual(
+            canonical_category_et("sushi_rolls", category_ru="Роллы", category_et="Maki"),
+            "Maki",
+        )
 
     def test_ocean_sushi_baked_gunkan_remains_gunkan(self):
         cases = (
