@@ -162,7 +162,7 @@ _MAIN_NAME_MARKERS = (
     "grillitud", "grilled", "praad", "kreeka pita", "krevetid kastmega",
 )
 _SAUCE_ONLY_NAME_RE = re.compile(
-    r"^(?:(?:extra|lisakaste|дополнительный)\\s+)?"
+    r"^(?:(?:extra|lisakaste|дополнительный)\s+)?"
     r"(?:sauce|kastmed?|kaste|соус(?:ы)?)(?:\\b|$)",
     re.IGNORECASE,
 )
@@ -596,12 +596,6 @@ def get_product_type(category, name):
 
     # Product identity outranks secondary WooCommerce tags such as "Sauces".
     # A sauce after "+" is an accompaniment, not the category of the whole dish.
-    if (
-        has_any(category_text, _APPETIZER_CATEGORY_MARKERS)
-        or has_any(name_text, _APPETIZER_NAME_MARKERS)
-    ):
-        return "appetizers"
-
     if has_any(name_text, _SIDE_MARKERS):
         protein_markers = (
             "chicken", "kana", "куриц", "beef", "loomaliha", "говядин",
@@ -610,6 +604,12 @@ def get_product_type(category, name):
         )
         if not has_any(name_text, protein_markers):
             return "sides"
+
+    if (
+        has_any(category_text, _APPETIZER_CATEGORY_MARKERS)
+        or has_any(name_text, _APPETIZER_NAME_MARKERS)
+    ):
+        return "appetizers"
 
     if has_any(name_text, _MAIN_NAME_MARKERS):
         return "main_courses"
