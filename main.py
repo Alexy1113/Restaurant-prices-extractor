@@ -2,6 +2,8 @@
 import datetime
 import argparse
 import os
+import re
+import unicodedata
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -41,6 +43,70 @@ def normalize_category(value):
     return value
 
 
+def normalize_match_name(value):
+    """Normalizes dish names for safe fallback matching across code changes."""
+    text = unicodedata.normalize("NFKD", str(value or "").casefold())
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return " ".join(re.findall(r"[a-z0-9]+", text))
+
+
+def normalize_variant_key(value):
+    """Returns a stable key for a price variant such as '0.25 l' or 'suur eine'."""
+    text = unicodedata.normalize("NFKD", str(value or "").casefold())
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return "-".join(re.findall(r"[a-z0-9]+", text))
+
+
+def stored_variant_key(row):
+    """Reads the stored variant, falling back to a known variant in dish_code."""
+    explicit = row.get("price_variant")
+    if explicit is not None and str(explicit).strip():
+        return normalize_variant_key(explicit)
+
+    code = str(row.get("dish_code") or "")
+    suffix = code.rsplit(":", 1)[-1].casefold()
+    known_variants = {
+        "single", "burger", "eine", "suur-eine", "with-topping",
+        "6-tk", "8-tk", "12-tk", "200-ml", "300-ml",
+        "0-25-l", "0-4-l", "0-5-l",
+    }
+    if suffix in known_variants or re.fullmatch(r"\d+(?:-\d+)?-(?:l|ml|tk)", suffix):
+        return normalize_variant_key(suffix)
+
+    return ""
+
+
+def matching_existing_rows(rows, dish, restaurant_name):
+    """Finds exact-name, exact-variant rows without guessing between sizes."""
+    incoming_names = {
+        normalize_match_name(dish.get(key))
+        for key in ("dish_name", "dish_name_ru", "dish_name_et")
+        if normalize_match_name(dish.get(key))
+    }
+    incoming_variant = normalize_variant_key(dish.get("price_variant"))
+
+    if not incoming_names:
+        return []
+
+    matches = []
+    for row in rows:
+        row_names = {
+            normalize_match_name(row.get(key))
+            for key in ("dish_name", "dish_name_ru", "dish_name_et")
+            if normalize_match_name(row.get(key))
+        }
+        if not incoming_names.intersection(row_names):
+            continue
+
+        # Do not match a different volume/meal option to this record.
+        if stored_variant_key(row) != incoming_variant:
+            continue
+
+        matches.append(row)
+
+    return matches
+
+
 def save_dishes_to_db(restaurant_name, scraped_dishes):
     """Сохраняет блюда одного ресторана в таблицу dishes Supabase."""
     print(f"\n[Main] Обработка ресторана: {restaurant_name}")
@@ -49,6 +115,8 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
     updated = 0
     unchanged = 0
     errors = 0
+    # Every successfully processed row in this run receives the same timestamp.
+    run_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     for dish in scraped_dishes:
         name_ru = dish.get("dish_name_ru")
@@ -70,7 +138,7 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
         product_type = dish.get("product_type", "Другое")
         category_et = normalize_category(dish.get("category_et"))
         category_ru = normalize_category(dish.get("category_ru"))
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now = run_timestamp
 
         try:
             query = (
@@ -85,6 +153,39 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
                 query = query.eq("dish_name", name)
 
             existing = query.limit(1).execute()
+            existing_rows = existing.data or []
+
+            # If a source code changed, try an exact name + exact variant match.
+            # This safely reuses one old row rather than inserting a duplicate.
+            if not existing_rows and dish_code is not None:
+                restaurant_rows_response = (
+                    supabase.table("dishes")
+                    .select("*")
+                    .eq("restaurant_name", restaurant_name)
+                    .execute()
+                )
+                candidates = matching_existing_rows(
+                    restaurant_rows_response.data or [], dish, restaurant_name
+                )
+
+                if len(candidates) == 1:
+                    existing_rows = candidates
+                    print(
+                        f" -> Найдена старая запись по названию и варианту: "
+                        f"{name}; код будет обновлён "
+                        f"{candidates[0].get('dish_code')} -> {dish_code}"
+                    )
+                elif len(candidates) > 1:
+                    candidate_codes = [
+                        str(row.get("dish_code")) for row in candidates
+                    ]
+                    print(
+                        f"[Неоднозначное совпадение] {name}: найдено несколько "
+                        f"записей с тем же названием и вариантом: {candidate_codes}. "
+                        "Новая запись не создаётся; требуется проверить дубли."
+                    )
+                    errors += 1
+                    continue
 
             # Не перезаписываем уже сохранённый русский перевод значением None.
             # Это важно для Hesburger: его парсер получает названия с эстонского сайта.
@@ -105,7 +206,7 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
             if category_ru is not None:
                 dish_data["category_ru"] = category_ru
 
-            if not existing.data:
+            if not existing_rows:
                 print(f" -> Новое блюдо: {name} ({new_price:.2f} €)")
                 dish_data.update({
                     "current_price": new_price,
@@ -116,7 +217,7 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
                 supabase.table("dishes").insert(dish_data).execute()
                 added += 1
             else:
-                db_dish = existing.data[0]
+                db_dish = existing_rows[0]
                 current_db_price = float(db_dish["current_price"])
                 dish_data["last_updated"] = now
 
