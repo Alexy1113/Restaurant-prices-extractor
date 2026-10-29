@@ -14,9 +14,23 @@ import requests
 from bs4 import BeautifulSoup
 
 
-MENU_BASE_URL = "https://monkrestoran.ee/ru/monk-johvi-2/"
-BASE_PATH = "/ru/monk-johvi-2/"
-LEGACY_MENU_URL = "https://monkrestoran.ee/johvi-rus/"
+LANGUAGE_CONFIG = {
+    "ru": {
+        "base_url": "https://monkrestoran.ee/ru/monk-johvi-2/",
+        "base_path": "/ru/monk-johvi-2/",
+        "legacy_url": "https://monkrestoran.ee/johvi-rus/",
+    },
+    "et": {
+        "base_url": "https://monkrestoran.ee/et/monk-johvi-2/",
+        "base_path": "/et/monk-johvi-2/",
+        "legacy_url": None,
+    },
+}
+
+# Backwards-compatible constants used by the Russian-only fallback menu.
+MENU_BASE_URL = LANGUAGE_CONFIG["ru"]["base_url"]
+BASE_PATH = LANGUAGE_CONFIG["ru"]["base_path"]
+LEGACY_MENU_URL = LANGUAGE_CONFIG["ru"]["legacy_url"]
 
 HEADERS = {
     "User-Agent": (
@@ -434,13 +448,88 @@ def get_category_from_page(soup, fallback):
     return clean_text(fallback) or "Без категории"
 
 
-def get_category_pages(session):
+def clean_url(url):
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/") + "/"
+    return f"{parsed.scheme.casefold()}://{parsed.netloc.casefold()}{path}"
+
+
+def find_alternate_category_url(soup, target_language):
+    """Looks for the same category linked by the site's language switcher."""
+    config = LANGUAGE_CONFIG[target_language]
+    expected_prefix = config["base_path"]
+
+    candidates = []
+    for link in soup.select("a[href], link[href]"):
+        href = link.get("href", "")
+        if not href:
+            continue
+
+        url = urljoin("https://monkrestoran.ee/", href)
+        parsed = urlparse(url)
+        if parsed.netloc.casefold() not in {"monkrestoran.ee", "www.monkrestoran.ee"}:
+            continue
+        if not parsed.path.startswith(expected_prefix):
+            continue
+
+        remainder = parsed.path[len(expected_prefix):].strip("/")
+        if not remainder or "/" in remainder:
+            continue
+
+        declared_lang = clean_text(
+            link.get("hreflang")
+            or link.get("lang")
+            or link.get("data-lang")
+            or ""
+        ).casefold()
+        attrs = " ".join([
+            str(link.get("class", "")),
+            str(link.get("aria-label", "")),
+            str(link.get("title", "")),
+            clean_text(link.get_text(" ", strip=True)),
+        ]).casefold()
+
+        # Prefer explicit language metadata, then language-switcher controls.
+        priority = 0 if declared_lang.startswith(target_language) else (
+            1 if any(token in attrs for token in (
+                target_language, "eesti", "estonian", "estonia",
+                "русский", "russian", "english", "inglise"
+            )) else 2
+        )
+        candidates.append((priority, clean_url(url)))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: item[0])
+    return candidates[0][1]
+
+
+def get_category_pair_key(soup, current_url, language):
+    """Returns the same category key from both language versions when possible."""
+    other_language = "et" if language == "ru" else "ru"
+    alternate_url = find_alternate_category_url(soup, other_language)
+
+    if alternate_url:
+        return "|".join(sorted((clean_url(current_url), alternate_url)))
+
+    # If category slugs are identical across languages, this produces the
+    # same key without requiring a language-switcher link.
+    path = urlparse(current_url).path
+    config = LANGUAGE_CONFIG[language]
+    remainder = path[len(config["base_path"]):].strip("/")
+    return f"slug:{normalize_key(remainder)}"
+
+
+def get_category_pages(session, language="ru"):
+    config = LANGUAGE_CONFIG[language]
     pages = {}
 
-    # Try both the category landing page and Monk's legacy all-in-one menu.
-    # The latter often contains the navigation links even when the landing
-    # page URL has changed.
-    for discovery_url in (MENU_BASE_URL, LEGACY_MENU_URL):
+    discovery_urls = [config["base_url"]]
+    if config.get("legacy_url"):
+        discovery_urls.append(config["legacy_url"])
+
+    for discovery_url in discovery_urls:
         try:
             response = session.get(discovery_url, timeout=20)
             response.raise_for_status()
@@ -453,10 +542,10 @@ def get_category_pages(session):
                     continue
 
                 path = parsed.path
-                if not path.startswith(BASE_PATH):
+                if not path.startswith(config["base_path"]):
                     continue
 
-                remainder = path[len(BASE_PATH):].strip("/")
+                remainder = path[len(config["base_path"]):].strip("/")
                 # A category page has exactly one path segment after the restaurant slug.
                 if not remainder or "/" in remainder:
                     continue
@@ -466,25 +555,42 @@ def get_category_pages(session):
                     image = link.find("img")
                     label = clean_text(link.get("title") or (image.get("alt", "") if image else ""))
 
-                pages.setdefault(path.rstrip("/") + "/", {
-                    "url": url.split("#", 1)[0].split("?", 1)[0],
+                canonical_url = url.split("#", 1)[0].split("?", 1)[0]
+                pages.setdefault(clean_url(canonical_url), {
+                    "url": canonical_url,
                     "label": label,
+                    "language": language,
                 })
 
         except requests.RequestException as error:
-            print(f"[Monk] Не удалось прочитать навигацию {discovery_url}: {error}")
+            print(f"[Monk/{language}] Не удалось прочитать навигацию {discovery_url}: {error}")
 
-    print(f"[Monk] Найдено категорий в навигации сайта: {len(pages)}")
+    print(f"[Monk/{language}] Найдено категорий в навигации сайта: {len(pages)}")
 
-    # Add known URLs as a fallback and ensure all categories listed on the site
-    # are processed even if the navigation is rendered by JavaScript.
-    for url in FALLBACK_CATEGORY_URLS:
+    # Known Russian category URLs are a fallback. For Estonian, try their
+    # matching paths too; if the site localizes slugs, the live navigation
+    # above will supply the correct links.
+    fallback_urls = FALLBACK_CATEGORY_URLS
+    if language == "et":
+        fallback_urls = [url.replace("/ru/", "/et/", 1) for url in FALLBACK_CATEGORY_URLS]
+
+    for url in fallback_urls:
         path = urlparse(url).path.rstrip("/") + "/"
-        pages.setdefault(path, {"url": url, "label": ""})
+        if path.startswith(config["base_path"]):
+            pages.setdefault(clean_url(url), {
+                "url": url,
+                "label": "",
+                "language": language,
+            })
 
     return list(pages.values())
 
-def get_stable_base_code(name):
+def get_stable_base_code(name, card=None):
+    """Uses a site product ID when available, otherwise a stable name hash."""
+    identifier = get_card_identifier(card)
+    if identifier:
+        return f"monk:{identifier}"
+
     key = normalize_key(name)
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:14]
     return f"monk:{digest}"
@@ -496,27 +602,30 @@ def make_variant_slug(variant):
     return value or "unknown"
 
 
-def parse_category(session, page):
+def parse_category(session, page, language="ru"):
     url = page["url"]
 
     try:
         response = session.get(url, timeout=20)
         response.raise_for_status()
     except requests.RequestException as error:
-        print(f"[Monk] Не удалось загрузить категорию {url}: {error}")
+        print(f"[Monk/{language}] Не удалось загрузить категорию {url}: {error}")
         return []
 
     soup = BeautifulSoup(response.text, "html.parser")
     category = get_category_from_page(soup, page.get("label"))
+    category_pair_key = get_category_pair_key(soup, url, language)
+    cards = get_cards(soup)
     records = []
 
-    for card in get_cards(soup):
+    for card_index, card in enumerate(cards):
         name = get_name(card)
         if not name:
             continue
 
         description = get_description(card)
-        base_code = get_stable_base_code(name)
+        base_code = get_stable_base_code(name, card)
+        match_id = get_card_identifier(card) or f"name:{normalize_key(name)}"
         variant_prices = extract_variant_prices(card.get_text(" ", strip=True))
 
         if variant_prices:
@@ -525,23 +634,24 @@ def parse_category(session, page):
                     base_code if index == 0
                     else f"{base_code}:variant:{make_variant_slug(variant)}"
                 )
-                records.append(
-                    make_record(name, category, dish_code, price, variant)
-                )
+                records.append(make_record(
+                    name, category, dish_code, price, variant, language,
+                    match_id, category_pair_key, card_index, len(cards)
+                ))
             continue
 
         price = get_price(card)
         if price is None or price <= 0:
             continue
 
-        # A single size in the description is kept as a variant as well.
         price_variant = extract_single_quantity(description)
-        records.append(make_record(name, category, base_code, price, price_variant))
+        records.append(make_record(
+            name, category, base_code, price, price_variant, language,
+            match_id, category_pair_key, card_index, len(cards)
+        ))
 
-    print(f"[Monk] {category}: получено записей — {len(records)}")
+    print(f"[Monk/{language}] {category}: получено записей — {len(records)}")
     return records
-
-
 
 def get_category_before_card(card):
     """Finds the nearest section heading on Monk's legacy all-in-one menu."""
@@ -607,65 +717,210 @@ def parse_legacy_menu(session):
     print(f"[Monk] Резервное меню: получено записей — {len(records)}")
     return records
 
-def make_record(name, category, dish_code, price, price_variant):
-    # Monk's Russian menu sometimes uses English names, which are also useful
-    # in the Estonian view. Keep an Estonian name only when the title is not Cyrillic.
-    has_cyrillic = bool(re.search(r"[А-Яа-яЁё]", name))
-    name_et = None if has_cyrillic else name
-
+def make_record(
+    name, category, dish_code, price, price_variant, language="ru",
+    match_id=None, category_pair_key=None, card_index=None, card_count=None
+):
+    """Builds one localized row and retains internal match keys for bilingual merge."""
     category_text = clean_text(category)
     if normalize_key(category_text) in {"", "без категории", "monk johvi"}:
         category_text = None
 
-    return {
+    is_ru = language == "ru"
+    has_cyrillic = bool(re.search(r"[А-Яа-яЁё]", name))
+    # English product names can be displayed in either UI language, but the
+    # category/name source still belongs only to the language being parsed.
+    result = {
         "dish_code": dish_code,
         "dish_name": name,
-        "dish_name_ru": name,
-        "dish_name_et": name_et,
-        "category_ru": category_text,
-        "category_et": None,
+        "dish_name_ru": name if is_ru else None,
+        "dish_name_et": name if not is_ru else None,
+        "category_ru": category_text if is_ru else None,
+        "category_et": category_text if not is_ru else None,
         "price": float(price),
         "price_variant": price_variant,
-        "product_type": get_product_type(category, name),
+        "product_type": get_product_type(category_text, name),
+        "_source_language": language,
+        "_match_id": match_id or f"name:{normalize_key(name)}",
+        "_category_pair_key": category_pair_key,
+        "_card_index": card_index,
+        "_card_count": card_count,
     }
+    return result
+
+
+def record_variant_key(record):
+    return normalize_key(record.get("price_variant"))
+
+
+def record_name_key(record):
+    return normalize_key(record.get("dish_name") or "")
+
+
+def deduplicate_language_records(records):
+    """Drops duplicate listings within a single language without merging translations."""
+    result = []
+    seen = set()
+    for record in records:
+        key = (record.get("_match_id"), record_variant_key(record))
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(record)
+    return result
+
+
+def merge_language_records(russian_records, estonian_records):
+    """Merges Russian and Estonian menu rows while preserving both localized fields."""
+    russian_records = deduplicate_language_records(russian_records)
+    estonian_records = deduplicate_language_records(estonian_records)
+
+    result = []
+    used_ru = set()
+    used_et = set()
+
+    # First match explicit shared product IDs, then genuinely identical names.
+    # If both are missing, fall back to the same paired category/card position,
+    # but only when the price and serving-size variant also agree.
+    for et_index, et_row in enumerate(estonian_records):
+        et_variant = record_variant_key(et_row)
+        et_name = record_name_key(et_row)
+        candidates = []
+
+        for ru_index, ru_row in enumerate(russian_records):
+            if ru_index in used_ru:
+                continue
+            if record_variant_key(ru_row) != et_variant:
+                continue
+
+            same_shared_id = (
+                ru_row.get("_match_id", "").startswith("site:")
+                and ru_row.get("_match_id") == et_row.get("_match_id")
+            )
+            same_name = bool(et_name) and record_name_key(ru_row) == et_name
+            if same_shared_id or same_name:
+                candidates.append((0 if same_shared_id else 1, ru_index))
+
+        if candidates:
+            _, ru_index = sorted(candidates)[0]
+        else:
+            positional_candidates = []
+            et_pair = et_row.get("_category_pair_key")
+            et_position = et_row.get("_card_index")
+            et_count = et_row.get("_card_count")
+
+            if et_pair is not None and et_position is not None:
+                for ru_index, ru_row in enumerate(russian_records):
+                    if ru_index in used_ru:
+                        continue
+                    if record_variant_key(ru_row) != et_variant:
+                        continue
+                    if ru_row.get("_category_pair_key") != et_pair:
+                        continue
+                    if ru_row.get("_card_index") != et_position:
+                        continue
+                    if ru_row.get("_card_count") != et_count:
+                        continue
+                    if abs(float(ru_row["price"]) - float(et_row["price"])) > 0.001:
+                        continue
+                    positional_candidates.append(ru_index)
+
+            if len(positional_candidates) != 1:
+                continue
+            ru_index = positional_candidates[0]
+
+        ru_row = russian_records[ru_index]
+        used_ru.add(ru_index)
+        used_et.add(et_index)
+
+        # Keep the Russian dish_code when available so future price runs update
+        # the same Supabase row. RU price takes priority if both pages agree.
+        merged = {
+            "dish_code": ru_row.get("dish_code") or et_row.get("dish_code"),
+            "dish_name": ru_row.get("dish_name") or et_row.get("dish_name"),
+            "dish_name_ru": ru_row.get("dish_name_ru") or None,
+            "dish_name_et": et_row.get("dish_name_et") or None,
+            "category_ru": ru_row.get("category_ru") or None,
+            "category_et": et_row.get("category_et") or None,
+            "price": float(ru_row["price"] if ru_row.get("price") is not None else et_row["price"]),
+            "price_variant": ru_row.get("price_variant") or et_row.get("price_variant"),
+            "product_type": get_product_type(
+                f"{ru_row.get('category_ru') or ''} {et_row.get('category_et') or ''}",
+                f"{ru_row.get('dish_name_ru') or ''} {et_row.get('dish_name_et') or ''}",
+            ),
+        }
+
+        if abs(float(ru_row["price"]) - float(et_row["price"])) > 0.001:
+            print(
+                "[Monk][ВНИМАНИЕ] Отличаются цены для "
+                f"{merged['dish_name']}: RU={float(ru_row['price']):.2f} €, "
+                f"ET={float(et_row['price']):.2f} €; сохранена русская цена."
+            )
+        result.append(merged)
+
+    # Preserve records that could not be paired instead of guessing and merging
+    # potentially different dishes that happen to have the same price.
+    for ru_index, row in enumerate(russian_records):
+        if ru_index not in used_ru:
+            result.append({
+                "dish_code": row.get("dish_code"),
+                "dish_name": row.get("dish_name"),
+                "dish_name_ru": row.get("dish_name_ru"),
+                "dish_name_et": None,
+                "category_ru": row.get("category_ru"),
+                "category_et": None,
+                "price": float(row["price"]),
+                "price_variant": row.get("price_variant"),
+                "product_type": row.get("product_type"),
+            })
+
+    for et_index, row in enumerate(estonian_records):
+        if et_index not in used_et:
+            result.append({
+                "dish_code": row.get("dish_code"),
+                "dish_name": row.get("dish_name"),
+                "dish_name_ru": None,
+                "dish_name_et": row.get("dish_name_et"),
+                "category_ru": None,
+                "category_et": row.get("category_et"),
+                "price": float(row["price"]),
+                "price_variant": row.get("price_variant"),
+                "product_type": row.get("product_type"),
+            })
+
+    return result
+
 
 
 def parse_menu():
-    """Loads all Monk Jõhvi categories and returns Supabase-compatible dish rows."""
+    """Parses Monk Jõhvi in Russian and Estonian and merges translations."""
     session = requests.Session()
     session.headers.update(HEADERS)
-    pages = get_category_pages(session)
-    if not pages:
-        print("[Monk] Не удалось найти страницы категорий.")
+
+    language_records = {}
+    for language in ("ru", "et"):
+        pages = get_category_pages(session, language)
+        records = []
+        for page in pages:
+            records.extend(parse_category(session, page, language))
+
+        # The legacy all-in-one menu is currently known for Russian.
+        if language == "ru" and not records:
+            records.extend(parse_legacy_menu(session))
+
+        language_records[language] = records
+        print(f"[Monk/{language}] Всего получено записей: {len(records)}")
+
+    russian_records = language_records.get("ru", [])
+    estonian_records = language_records.get("et", [])
+
+    if not russian_records and not estonian_records:
+        print("[Monk] Не удалось получить меню ни на русском, ни на эстонском.")
         return []
 
-    merged = {}
-    for page in pages:
-        for dish in parse_category(session, page):
-            # Some products may be linked from more than one section.
-            key = (
-                normalize_key(dish.get("dish_name")),
-                normalize_key(dish.get("price_variant")),
-            )
-            if key not in merged:
-                merged[key] = dish
-
-    # Use the all-in-one legacy menu only if none of the category pages
-    # returned usable records. This avoids introducing duplicates from older
-    # product titles when the current category pages are working.
-    if not merged:
-        for dish in parse_legacy_menu(session):
-            key = (
-                normalize_key(dish.get("dish_name")),
-                normalize_key(dish.get("price_variant")),
-            )
-            if key not in merged:
-                merged[key] = dish
-
-    result = list(merged.values())
-    print(f"[Monk] После удаления повторов: {len(result)} записей")
+    result = merge_language_records(russian_records, estonian_records)
+    print(f"[Monk] После объединения языков и удаления повторов: {len(result)} записей")
     return result
-
 
 if __name__ == "__main__":
     for item in parse_menu():
