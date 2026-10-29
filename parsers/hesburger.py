@@ -23,6 +23,8 @@ import pymupdf
 import requests
 from bs4 import BeautifulSoup
 
+from parsers.categories import canonical_category_ru
+
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -149,6 +151,11 @@ def get_product_type(category, name):
     name_text = normalize_name(name)
     text = f"{category_text} {name_text}"
 
+    # Breakfast product names can contain "burger" or "tortilla"; the
+    # breakfast section must take priority over the generic food type.
+    if "hommikupala" in category_text or "hommikupala" in name_text:
+        return "breakfast"
+
     # Более специфические типы проверяем до общих категорий.
     if "jaatisekokteil" in text:
         return "ice_cream_shakes"
@@ -198,29 +205,10 @@ def get_product_type(category, name):
 
 
 
-# Русские названия категорий Hesburger приводим к общим категориям проекта.
-# Это предотвращает появление отдельных категорий из-за английского product_type.
-RUSSIAN_CATEGORIES = {
-    "burgers": "Бургеры",
-    "tortillas": "Тортильи",
-    "salads": "Салаты",
-    "appetizers": "Закуски",
-    "sides": "Гарниры",
-    "sauces": "Соусы",
-    "desserts": "Десерты",
-    "syrups": "Сиропы",
-    "drinks": "Напитки",
-    "ice_cream_shakes": "Молочные коктейли",
-    "breakfast": "Завтраки",
-    "campaigns": "Акции",
-    "other": "Другое",
-}
-
-
+# All parser outputs use the same cross-restaurant Russian labels.
 def get_russian_category(product_type):
-    """Возвращает русское название общей категории с заглавной буквы."""
-    return RUSSIAN_CATEGORIES.get(product_type, "Другое")
-
+    """Returns the shared Russian display category for a product type."""
+    return canonical_category_ru(product_type)
 
 def get_catalog_products():
     """Загружает каталог товаров Hesburger и извлекает названия, категории и URL."""
