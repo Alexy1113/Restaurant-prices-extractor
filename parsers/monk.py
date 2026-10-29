@@ -18,7 +18,7 @@ LANGUAGE_CONFIG = {
     "ru": {
         "base_url": "https://monkrestoran.ee/ru/monk-johvi-2/",
         "base_path": "/ru/monk-johvi-2/",
-        "legacy_url": "https://monkrestoran.ee/ru/monk-johvi-2/d181d183d0b8/",
+        "legacy_url": "https://monkrestoran.ee/ru/monk-johvi-2/d181d183d188d0b8/",
     },
     "et": {
         "base_url": "https://monkrestoran.ee/monk-johvi/",
