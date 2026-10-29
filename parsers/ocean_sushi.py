@@ -24,6 +24,13 @@ PRICE_RE = re.compile(
 
 CODE_RE = re.compile(r"^\s*(\d{1,4})\s*\.?\s*")
 
+# Formats such as "8tk 9.60, 12tk 11.60 €" in product descriptions.
+VARIANT_PRICE_RE = re.compile(
+    r"(?P<count>\d+)\s*(?:tk\.?|шт\.?|pcs?\.?)\s*(?:€\s*)?"
+    r"(?P<price>\d+(?:[.,]\d{1,2})?)",
+    re.IGNORECASE,
+)
+
 
 def clean_text(text):
     return re.sub(r"\s+", " ", text or "").strip()
@@ -239,6 +246,45 @@ def get_price(card):
     return None
 
 
+def get_price_variants(card):
+    """Reads quantity/price pairs, for example '8tk 9.60, 12tk 11.60 €'."""
+    text = clean_text(card.get_text(" ", strip=True))
+    found = {}
+
+    for match in VARIANT_PRICE_RE.finditer(text):
+        count = int(match.group("count"))
+        price = float(match.group("price").replace(",", "."))
+
+        # Ignore repeated copies of the same pair caused by duplicated HTML text.
+        if count not in found:
+            found[count] = price
+        elif found[count] != price:
+            print(
+                f"[Ocean Sushi][ВНИМАНИЕ] Для размера {count} tk "
+                f"найдены разные цены: {found[count]:.2f} и {price:.2f} €."
+            )
+
+    return [(count, found[count]) for count in sorted(found)]
+
+
+def get_default_price_variant(category):
+    """Ordinary maki are sold as six pieces unless the card specifies sizes."""
+    category_text = clean_text(category).casefold()
+
+    if any(word in category_text for word in ("хосомаки", "hosomaki")):
+        return None
+
+    if "маки" in category_text or "maki" in category_text:
+        return "6 tk"
+
+    return None
+
+
+def make_variant_slug(value):
+    """Creates a stable ASCII suffix for a size-specific dish_code."""
+    return re.sub(r"[^a-z0-9]+", "-", str(value or "").casefold()).strip("-") or "unknown"
+
+
 def get_name_and_code(card):
     title = card.select_one(
         ".ee-post__title__heading, "
@@ -307,9 +353,8 @@ def parse_language(language, url):
             continue
 
         name, dish_code = get_name_and_code(card)
-        price = get_price(card)
 
-        if not name or price is None:
+        if not name:
             continue
 
         if name.casefold() in {
@@ -323,10 +368,31 @@ def parse_language(language, url):
 
         category = get_category_before(card, soup)
 
+        # If a card lists several sizes and prices, create one record per size.
+        price_variants = get_price_variants(card)
+        if price_variants:
+            for count, variant_price in price_variants:
+                dishes.append({
+                    "dish_code": dish_code,
+                    "name": name,
+                    "price": variant_price,
+                    "price_variant": f"{count} tk",
+                    "category": category,
+                    "language": language,
+                })
+            continue
+
+        # Otherwise use the card's normal price and infer six pieces for
+        # products in the ordinary Maki section.
+        price = get_price(card)
+        if price is None:
+            continue
+
         dishes.append({
             "dish_code": dish_code,
             "name": name,
             "price": price,
+            "price_variant": get_default_price_variant(category),
             "category": category,
             "language": language,
         })
@@ -344,17 +410,20 @@ def parse_menu():
         ru_dishes = parse_language("ru", MENU_URLS["ru"])
         et_dishes = parse_language("et", MENU_URLS["et"])
 
-        # Сопоставляем записи по коду блюда.
-        # Записи без кода не объединяем по догадке.
+        # Match Russian and Estonian cards by both product code and size.
+        # This keeps 8 tk and 12 tk prices as separate records.
         merged = {}
+
+        def variant_key(value):
+            return clean_text(value).casefold() if value else ""
 
         for dish in ru_dishes:
             code = dish["dish_code"]
-
+            variant = dish.get("price_variant")
             if code:
-                key = ("code", code)
+                key = ("code", str(code), variant_key(variant))
             else:
-                key = ("ru", dish["name"].casefold())
+                key = ("ru", dish["name"].casefold(), variant_key(variant))
 
             if key not in merged:
                 merged[key] = {
@@ -365,6 +434,7 @@ def parse_menu():
                     "category_et": None,
                     "price_ru": None,
                     "price_et": None,
+                    "price_variant": variant,
                 }
 
             merged[key]["dish_name_ru"] = dish["name"]
@@ -373,11 +443,11 @@ def parse_menu():
 
         for dish in et_dishes:
             code = dish["dish_code"]
-
+            variant = dish.get("price_variant")
             if code:
-                key = ("code", code)
+                key = ("code", str(code), variant_key(variant))
             else:
-                key = ("et", dish["name"].casefold())
+                key = ("et", dish["name"].casefold(), variant_key(variant))
 
             if key not in merged:
                 merged[key] = {
@@ -388,11 +458,36 @@ def parse_menu():
                     "category_et": None,
                     "price_ru": None,
                     "price_et": None,
+                    "price_variant": variant,
                 }
 
             merged[key]["dish_name_et"] = dish["name"]
             merged[key]["category_et"] = dish["category"]
             merged[key]["price_et"] = dish["price"]
+
+        # A product with size prices needs a stable unique code per size.
+        # Keep the smallest size's original code so an existing DB row is
+        # updated instead of duplicated; append a suffix to additional sizes.
+        rows_by_code = {}
+        for item in merged.values():
+            if item["dish_code"] is not None:
+                rows_by_code.setdefault(str(item["dish_code"]), []).append(item)
+
+        for base_code, items in rows_by_code.items():
+            def size_sort_key(item):
+                match = re.match(r"\s*(\d+)", str(item.get("price_variant") or ""))
+                return (
+                    int(match.group(1)) if match else 10**9,
+                    str(item.get("price_variant") or "").casefold(),
+                )
+
+            items.sort(key=size_sort_key)
+            for index, item in enumerate(items):
+                if index == 0:
+                    item["output_dish_code"] = base_code
+                else:
+                    suffix = make_variant_slug(item.get("price_variant"))
+                    item["output_dish_code"] = f"{base_code}:variant:{suffix}"
 
         result = []
 
@@ -432,13 +527,14 @@ def parse_menu():
             )
 
             result.append({
-                "dish_code": item["dish_code"],
+                "dish_code": item.get("output_dish_code", item["dish_code"]),
                 "dish_name": display_name,
                 "dish_name_ru": name_ru,
                 "dish_name_et": name_et,
                 "category_ru": category_ru or None,
                 "category_et": category_et or None,
                 "price": price,
+                "price_variant": item.get("price_variant"),
                 "product_type": product_type,
             })
 
