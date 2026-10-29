@@ -165,6 +165,8 @@ class BreakTimeHtmlTests(unittest.TestCase):
             "category": "Бургеры",
             "product_type": "burgers",
             "language": "ru",
+            "catalog_category_key": "burgerid",
+            "catalog_category_key": "burgerid",
             "catalog_position": 4,
         }]
         estonian = [{
