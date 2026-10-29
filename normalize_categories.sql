@@ -94,7 +94,7 @@ mapped AS (
              AND category_ru NOT IN ('Другое', 'Other', 'Без категории')
                 THEN category_ru
             WHEN normalized_product_type = 'other' THEN 'Другое'
-            ELSE category_ru
+            ELSE coalesce(category_ru, 'Другое')
         END AS normalized_category_ru
     FROM typed
 ),
@@ -131,3 +131,20 @@ SELECT
 FROM public.dishes
 GROUP BY category_ru, product_type
 ORDER BY category_ru, product_type;
+
+-- Review these rows manually: their source category is meaningful, but the
+-- current product_type is too broad to safely infer a more specific category.
+SELECT
+    id,
+    restaurant_name,
+    dish_name,
+    dish_name_ru,
+    dish_name_et,
+    product_type,
+    category_ru,
+    category_et,
+    dish_code
+FROM public.dishes
+WHERE category_ru = 'Запечённые'
+   OR (product_type = 'other' AND category_ru NOT IN ('Другое', 'Other', 'Без категории'))
+ORDER BY restaurant_name, category_ru, dish_name;
