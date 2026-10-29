@@ -84,7 +84,7 @@ _DRINK_NAME_MARKERS = (
     "water", "vesi", "mahl", "juice", "limonaad", "lemonade", "coffee",
     "kohv", "espresso", "cappuccino", "latte", "tee", "tea", "kohvijook",
     "milkshake", "jäätisekokteil", "коктейл", "кофе", "чай", "вода",
-    "сок", "лимонад", "пиво", "вино", "gin ", "whisky", "vodka",
+    "сок", "лимонад", "пиво", "вино",
 )
 _ALCOHOL_MARKERS = (
     "alkohool", "alcohol", "алкогол", "beer", "bier", "õlu", "vein",
@@ -370,6 +370,11 @@ def get_product_type(category, name):
     def has_any(text, markers):
         return any(marker in text for marker in markers)
 
+    # Milkshakes/cocktails have their own shared product type, which maps to
+    # the project's existing drinks category in both languages.
+    if has_any(category_text, ("kokteil", "коктейл")):
+        return "ice_cream_shakes"
+
     # A named combo or burger meal is a set, including products in the broad
     # Estonian Eine section. Plain fries under Eine are still a side dish.
     if has_any(category_text, _SET_CATEGORY_MARKERS):
@@ -437,7 +442,10 @@ def get_product_type(category, name):
 
     if has_any(all_text, _ALCOHOL_MARKERS):
         return "drinks"
-    if has_any(name_text, _DRINK_NAME_MARKERS):
+    if has_any(name_text, _DRINK_NAME_MARKERS) or re.search(
+        r"\\b(?:tea|tee|gin|whisky|whiskey|vodka|rum|coffee|kohv)\\b",
+        name_text,
+    ):
         return "drinks"
 
     if has_any(category_text, _MAIN_CATEGORY_MARKERS):
