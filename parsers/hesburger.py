@@ -176,6 +176,11 @@ def get_product_type(category, name):
     ]):
         return "desserts"
 
+    # Syrup for coffee is an additive, not a beverage. Check this before
+    # the drinks rule because "kohvile" contains the substring "kohv".
+    if any(word in name_text for word in ["siirup", "syrup", "siroop", "siirupid"]):
+        return "syrups"
+
     if any(word in text for word in [
         "coca cola", "fanta", "sprite", "kohv", "espresso", "cappuccino",
         "latte", "tee", "vesi", "mahl", "smuuti", "limonaad", "jook",
