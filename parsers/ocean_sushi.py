@@ -473,14 +473,14 @@ def parse_menu():
             if item["dish_code"] is not None:
                 rows_by_code.setdefault(str(item["dish_code"]), []).append(item)
 
-        for base_code, items in rows_by_code.items():
-            def size_sort_key(item):
-                match = re.match(r"\s*(\d+)", str(item.get("price_variant") or ""))
-                return (
-                    int(match.group(1)) if match else 10**9,
-                    str(item.get("price_variant") or "").casefold(),
-                )
+        def size_sort_key(item):
+            match = re.match(r"\s*(\d+)", str(item.get("price_variant") or ""))
+            return (
+                int(match.group(1)) if match else 10**9,
+                str(item.get("price_variant") or "").casefold(),
+            )
 
+        for base_code, items in rows_by_code.items():
             items.sort(key=size_sort_key)
             for index, item in enumerate(items):
                 if index == 0:
@@ -488,6 +488,29 @@ def parse_menu():
                 else:
                     suffix = make_variant_slug(item.get("price_variant"))
                     item["output_dish_code"] = f"{base_code}:variant:{suffix}"
+
+        # A few cards may lack a numeric product code. Keep the first size
+        # matched by name (so an existing row can be updated) and give every
+        # additional size a deterministic code so different prices don't
+        # overwrite one another on each run.
+        rows_without_code = {}
+        for item in merged.values():
+            if item["dish_code"] is None:
+                product_name = item["dish_name_ru"] or item["dish_name_et"] or ""
+                rows_without_code.setdefault(product_name.casefold(), []).append(item)
+
+        for product_name, items in rows_without_code.items():
+            if len(items) < 2:
+                continue
+
+            items.sort(key=size_sort_key)
+            base_slug = make_variant_slug(product_name)
+            for index, item in enumerate(items):
+                if index == 0:
+                    item["output_dish_code"] = None
+                else:
+                    suffix = make_variant_slug(item.get("price_variant"))
+                    item["output_dish_code"] = f"ocean:{base_slug}:variant:{suffix}"
 
         result = []
 
