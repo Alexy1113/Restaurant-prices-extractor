@@ -285,11 +285,34 @@ def get_product_type(category, name):
     if any(word in all_text for word in ("суп", "soup", "supid", "tom kha", "tom yam", "том ям", "том кха", "miso", "мисо")):
         return "soups"
 
-    if any(word in all_text for word in ("салат", "salad", "salatid", "salati")):
-        return "salads"
-
+    
     if any(word in name_text for word in ("noodle", "nuudel", "лапша", "nudel")):
         return "noodles"
+
+    # Preserve the menu section's meaning for appetizers.
+    if any(word in category_text for word in (
+        "закуск", "eelroad", "appetizer", "starter", "suupiste"
+    )):
+        return "appetizers"
+
+    # An explicit salad section takes priority over ingredients in the name.
+    if any(word in category_text for word in (
+        "салат", "salad", "salatid", "salati"
+    )):
+        return "salads"
+
+    # Fries and potato dishes in other sections are sides,
+    # even if the name also mentions salad.
+    if any(word in name_text for word in (
+        "картофел", "potato", "fries", "friikartul", "kartul"
+    )):
+        return "sides"
+
+    if any(word in all_text for word in (
+        "салат", "salad", "salatid", "salati"
+    )):
+        return "salads"
+
 
     # The menu section takes priority over ingredients mentioned in the name.
     # Example: chicken shashlik with baked potatoes is an appetizer, not a side.
