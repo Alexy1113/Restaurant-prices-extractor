@@ -307,9 +307,6 @@ def _is_category_url(url):
 def _is_popular_section_card(card):
     """Return True when a product card belongs to the homepage popular block."""
     for ancestor in card.parents:
-        if not getattr(ancestor, "attrs", None):
-            continue
-
         classes = ancestor.get("class", [])
         if isinstance(classes, str):
             classes = classes.split()
@@ -874,10 +871,10 @@ def parse_language(session, language):
             flush=True,
         )
 
-        # The Russian /ru/ entry point is the all-products shop archive. Its
-        # global pagination repeats products already covered by the category
-        # archives and needlessly consumes the page budget; paginate category
-        # pages only.
+        # The language entry point may be a homepage or an all-products
+        # shop archive. Its global pagination repeats products already covered
+        # by the category archives and needlessly consumes the page budget;
+        # paginate category pages only.
         pagination_urls = _pagination_urls(soup, url, language)
         if url == initial_url and category_urls:
             pagination_urls = []
