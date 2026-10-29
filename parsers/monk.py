@@ -574,16 +574,62 @@ def get_category_pages(session, language="ru"):
     if language == "et":
         fallback_urls = [url.replace("/ru/", "/et/", 1) for url in FALLBACK_CATEGORY_URLS]
 
-    for url in fallback_urls:
-        path = urlparse(url).path.rstrip("/") + "/"
-        if path.startswith(config["base_path"]):
-            pages.setdefault(clean_url(url), {
-                "url": url,
-                "label": "",
-                "language": language,
-            })
+    if language == "ru" or not pages:
+        for url in fallback_urls:
+            path = urlparse(url).path.rstrip("/") + "/"
+            if path.startswith(config["base_path"]):
+                pages.setdefault(clean_url(url), {
+                    "url": url,
+                    "label": "",
+                    "language": language,
+                })
 
     return list(pages.values())
+
+def get_card_identifier(card):
+    """Tries to extract a stable product/SKU ID shared by language versions."""
+    if card is None:
+        return None
+
+    nodes = [card]
+    for parent in list(card.parents)[:2]:
+        nodes.append(parent)
+
+    id_attributes = (
+        "data-product_id", "data-product-id", "data-productid",
+        "data-post-id", "data-postid", "data-item-id", "data-id", "data-sku",
+    )
+    id_patterns = (
+        re.compile(r"^(?:product|post|item|ee-post)[_-]?(\d+)$", re.I),
+        re.compile(r"(?:^|\s)(?:post|product|product-id|postid|ee-post)[_-](\d+)(?:\s|$)", re.I),
+    )
+
+    for node in nodes:
+        for attr in id_attributes:
+            value = clean_text(node.get(attr, ""))
+            if value and re.fullmatch(r"[A-Za-z0-9_-]{2,80}", value):
+                return f"site:{value.casefold()}"
+
+        candidates = [clean_text(node.get("id", ""))]
+        classes = node.get("class", [])
+        if isinstance(classes, str):
+            classes = classes.split()
+        candidates.extend(classes)
+
+        for candidate in candidates:
+            for pattern in id_patterns:
+                match = pattern.search(candidate)
+                if match:
+                    return f"site:{match.group(1)}"
+
+        for link in node.select("a[href]") if hasattr(node, "select") else []:
+            href = link.get("href", "")
+            match = re.search(r"[?&](?:product_id|post_id|p)=(\d+)(?:&|$)", href, re.I)
+            if match:
+                return f"site:{match.group(1)}"
+
+    return None
+
 
 def get_stable_base_code(name, card=None):
     """Uses a site product ID when available, otherwise a stable name hash."""
