@@ -309,6 +309,119 @@ def get_name_and_code(card):
 
 
 
+def get_product_description(card):
+    """Extracts product description text without title, price, or cart controls."""
+    clone = BeautifulSoup(str(card), "html.parser")
+
+    for selector in [
+        ".ee-post__title__heading",
+        ".product_title",
+        ".woocommerce-loop-product__title",
+        ".dish-title",
+        ".ee-post__price",
+        ".price",
+        ".woocommerce-Price-amount",
+        "[class*='price']",
+        "button",
+        "[class*='cart']",
+        "[class*='add-to-cart']",
+        "[class*='quantity']",
+    ]:
+        for element in clone.select(selector):
+            element.decompose()
+
+    description = clean_text(clone.get_text(" ", strip=True))
+    description = re.sub(
+        r"\b(?:lisa ostukorvi|lisa korvi|add to cart|в корзину|добавить в корзину)\b",
+        "",
+        description,
+        flags=re.IGNORECASE,
+    )
+    return clean_text(description)
+
+
+def make_combo_variant(dish_code, description):
+    """Builds a short, distinct Ocean Combo label from its product composition."""
+    code = str(dish_code or "").strip()
+    items = []
+
+    for part in re.split(r"\s*/\s*", str(description or "")):
+        part = clean_text(part).strip(" ,;")
+        if not part:
+            continue
+
+        match = re.match(r"^(\d+)\s*[×xх]\s*(.+)$", part, flags=re.IGNORECASE)
+        if match:
+            quantity = int(match.group(1))
+            name = clean_text(match.group(2)).strip(" .;,")
+        else:
+            quantity = 1
+            name = part
+
+        if name:
+            items.append((quantity, name))
+
+    named_products = []
+    grouped_counts = {}
+    group_order = ["gunkan", "nigiri", "hosomaki", "inari"]
+    baked_gunkan_count = 0
+
+    for quantity, name in items:
+        normalized = name.casefold()
+
+        if "miso" in normalized and any(
+            token in normalized for token in ("supp", "soup", "суп")
+        ):
+            grouped_counts["miso"] = grouped_counts.get("miso", 0) + quantity
+        elif "gunkan" in normalized or "гункан" in normalized:
+            is_baked = any(
+                token in normalized
+                for token in ("küpsetatud", "запеч", "baked", "cooked")
+            )
+            if is_baked:
+                baked_gunkan_count += quantity
+            else:
+                grouped_counts["gunkan"] = grouped_counts.get("gunkan", 0) + quantity
+        elif "nigiri" in normalized or "нигири" in normalized:
+            grouped_counts["nigiri"] = grouped_counts.get("nigiri", 0) + quantity
+        elif "hosomaki" in normalized or "хосомаки" in normalized:
+            grouped_counts["hosomaki"] = grouped_counts.get("hosomaki", 0) + quantity
+        elif "inari" in normalized or "инари" in normalized:
+            grouped_counts["inari"] = grouped_counts.get("inari", 0) + quantity
+        else:
+            # Keep roll names themselves; remove only the generic "maki" suffix.
+            short_name = re.sub(
+                r"\s+(?:maki|маки)$", "", name, flags=re.IGNORECASE
+            ).strip()
+            if short_name and short_name.casefold() not in {
+                item.casefold() for item in named_products
+            }:
+                named_products.append(short_name)
+
+    label_parts = []
+    if len(named_products) <= 2:
+        label_parts.extend(named_products)
+    else:
+        label_parts.extend(named_products[:2])
+        label_parts.append(f"{len(named_products) - 2} more varieties")
+
+    if baked_gunkan_count:
+        label_parts.append(f"{baked_gunkan_count} baked gunkan")
+    for kind in group_order:
+        count = grouped_counts.get(kind, 0)
+        if count:
+            label_parts.append(f"{count} {kind}")
+    if grouped_counts.get("miso"):
+        label_parts.append("miso")
+
+    summary = " + ".join(label_parts)
+    if code and summary:
+        return f"№{code} · {summary}"
+    if code:
+        return f"№{code}"
+    return summary or "Ocean Combo"
+
+
 def get_category_before(card, soup):
     """Находит предыдущий заголовок раздела,
     пропуская заголовки блюд с числовыми кодами.
@@ -368,6 +481,11 @@ def parse_language(language, url):
             continue
 
         category = get_category_before(card, soup)
+        description = get_product_description(card)
+        is_ocean_combo = (
+            name.strip().casefold() == "ocean combo"
+            and dish_code is not None
+        )
 
         # If a card lists several sizes and prices, create one record per size.
         price_variants = get_price_variants(card)
@@ -378,6 +496,7 @@ def parse_language(language, url):
                     "name": name,
                     "price": variant_price,
                     "price_variant": f"{count} tk",
+                    "description": description,
                     "category": category,
                     "language": language,
                 })
@@ -389,11 +508,17 @@ def parse_language(language, url):
         if price is None:
             continue
 
+        price_variant = (
+            f"combo:{dish_code}" if is_ocean_combo
+            else get_default_price_variant(category)
+        )
+
         dishes.append({
             "dish_code": dish_code,
             "name": name,
             "price": price,
-            "price_variant": get_default_price_variant(category),
+            "price_variant": price_variant,
+            "description": description,
             "category": category,
             "language": language,
         })
@@ -436,11 +561,14 @@ def parse_menu():
                     "price_ru": None,
                     "price_et": None,
                     "price_variant": variant,
+                    "description_ru": None,
+                    "description_et": None,
                 }
 
             merged[key]["dish_name_ru"] = dish["name"]
             merged[key]["category_ru"] = dish["category"]
             merged[key]["price_ru"] = dish["price"]
+            merged[key]["description_ru"] = dish.get("description")
 
         for dish in et_dishes:
             code = dish["dish_code"]
@@ -460,11 +588,14 @@ def parse_menu():
                     "price_ru": None,
                     "price_et": None,
                     "price_variant": variant,
+                    "description_ru": None,
+                    "description_et": None,
                 }
 
             merged[key]["dish_name_et"] = dish["name"]
             merged[key]["category_et"] = dish["category"]
             merged[key]["price_et"] = dish["price"]
+            merged[key]["description_et"] = dish.get("description")
 
         # A product with size prices needs a stable unique code per size.
         # Keep the smallest size's original code so an existing DB row is
@@ -553,6 +684,16 @@ def parse_menu():
                 f"{name_ru or ''} {name_et or ''}"
             )
 
+            price_variant = item.get("price_variant")
+            if str(price_variant or "").startswith("combo:"):
+                combo_code = str(item["dish_code"] or str(price_variant).split(":", 1)[1])
+                combo_description = (
+                    item.get("description_et")
+                    or item.get("description_ru")
+                    or ""
+                )
+                price_variant = make_combo_variant(combo_code, combo_description)
+
             result.append({
                 "dish_code": item.get("output_dish_code", item["dish_code"]),
                 "dish_name": display_name,
@@ -561,7 +702,7 @@ def parse_menu():
                 "category_ru": category_ru or None,
                 "category_et": category_et or None,
                 "price": price,
-                "price_variant": item.get("price_variant"),
+                "price_variant": price_variant,
                 "product_type": product_type,
             })
 
