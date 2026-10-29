@@ -1,0 +1,77 @@
+name: Break Time parser validation
+
+on:
+  push:
+    branches:
+      - feature/break-time-burger-wrap-parser
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install parser dependencies
+        run: python -m pip install --upgrade pip requests beautifulsoup4
+
+      - name: Compile Python files
+        run: python -m compileall -q main.py parsers tests
+
+      - name: Run test suite
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+  live-site-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install parser dependencies
+        run: python -m pip install --upgrade pip requests beautifulsoup4
+
+      - name: Parse live RU and ET menus without writing to Supabase
+        run: |
+          python - <<'PY'
+          from parsers.break_time import parse_menu
+
+          rows = parse_menu()
+          print(f"SMOKE TEST: parsed {len(rows)} unique output rows")
+
+          assert rows, "The live parser returned no rows."
+          assert len(rows) >= 100, f"Suspiciously few menu rows: {len(rows)}"
+
+          invalid = [
+              row for row in rows
+              if not row.get("dish_name")
+              or row.get("price") is None
+              or float(row["price"]) <= 0
+              or not row.get("category_ru")
+              or not row.get("category_et")
+              or not row.get("product_type")
+          ]
+          assert not invalid, f"Rows are missing required fields: {invalid[:5]}"
+
+          ru_names = sum(bool(row.get("dish_name_ru")) for row in rows)
+          et_names = sum(bool(row.get("dish_name_et")) for row in rows)
+          both_names = sum(
+              bool(row.get("dish_name_ru") and row.get("dish_name_et"))
+              for row in rows
+          )
+          print(f"Russian titles: {ru_names}; Estonian titles: {et_names}; paired: {both_names}")
+          print("Live parser smoke test passed. Supabase was not contacted.")
+          PY
