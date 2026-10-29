@@ -48,13 +48,19 @@ jobs:
       - name: Parse live RU and ET menus without writing to Supabase
         run: |
           python - <<'PY'
-          from parsers.break_time import parse_menu
+          import parsers.break_time as parser
 
-          rows = parse_menu()
+          # This is a smoke test, not a full catalog crawl. Keep requests bounded
+          # so the site's rate limiter does not consume the whole Actions job.
+          parser.MAX_CATALOG_PAGES = 5
+          parser.MAX_LANGUAGE_SECONDS = 90
+          rows = parser.parse_menu()
           print(f"SMOKE TEST: parsed {len(rows)} unique output rows")
 
           assert rows, "The live parser returned no rows."
-          assert len(rows) >= 100, f"Suspiciously few menu rows: {len(rows)}"
+          assert len(rows) >= 10, f"Suspiciously few menu rows: {len(rows)}"
+          assert any(row.get("dish_name_ru") for row in rows), "No Russian titles parsed."
+          assert any(row.get("dish_name_et") for row in rows), "No Estonian titles parsed."
 
           invalid = [
               row for row in rows
