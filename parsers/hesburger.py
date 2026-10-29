@@ -197,6 +197,31 @@ def get_product_type(category, name):
     return "other"
 
 
+
+# Русские названия категорий Hesburger приводим к общим категориям проекта.
+# Это предотвращает появление отдельных категорий из-за английского product_type.
+RUSSIAN_CATEGORIES = {
+    "burgers": "Бургеры",
+    "tortillas": "Тортильи",
+    "salads": "Салаты",
+    "appetizers": "Закуски",
+    "sides": "Гарниры",
+    "sauces": "Соусы",
+    "desserts": "Десерты",
+    "syrups": "Сиропы",
+    "drinks": "Напитки",
+    "ice_cream_shakes": "Молочные коктейли",
+    "breakfast": "Завтраки",
+    "campaigns": "Акции",
+    "other": "Другое",
+}
+
+
+def get_russian_category(product_type):
+    """Возвращает русское название общей категории с заглавной буквы."""
+    return RUSSIAN_CATEGORIES.get(product_type, "Другое")
+
+
 def get_catalog_products():
     """Загружает каталог товаров Hesburger и извлекает названия, категории и URL."""
     response = requests.get(MENU_URL, headers=HEADERS, timeout=30)
@@ -257,14 +282,15 @@ def get_catalog_products():
 
         dish_code = "hesburger:" + "/".join(code_path_parts)
 
+        product_type = get_product_type(category_et, name_et)
         products.setdefault(dish_code, {
             "dish_code": dish_code,
             "dish_name": name_et,
             "dish_name_ru": None,
             "dish_name_et": name_et,
-            "category_ru": None,
+            "category_ru": get_russian_category(product_type),
             "category_et": category_et,
-            "product_type": get_product_type(category_et, name_et),
+            "product_type": product_type,
             "product_url": product_url,
         })
 
@@ -647,14 +673,15 @@ def add_record(records, catalog_lookup, name, price, variant, category_hint, war
     variant_slug = make_slug(variant)
     dish_code = f"{base_code}:{variant_slug}"
 
+    product_type = get_product_type(category_et, dish_name_et)
     record = {
         "dish_code": dish_code,
         "dish_name": dish_name_et,
         "dish_name_ru": None,          # У Hesburger нет русской версии сайта.
         "dish_name_et": dish_name_et,
-        "category_ru": None,
+        "category_ru": get_russian_category(product_type),
         "category_et": category_et,
-        "product_type": get_product_type(category_et, dish_name_et),
+        "product_type": product_type,
         "price": round(float(price), 2),
         "price_variant": variant,
         "product_url": product_url,
