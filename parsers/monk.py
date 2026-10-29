@@ -13,6 +13,8 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from parsers.categories import canonical_category_ru
+
 
 LANGUAGE_CONFIG = {
     "ru": {
@@ -1079,6 +1081,19 @@ def merge_language_records(russian_records, estonian_records):
                 "price_variant": row.get("price_variant"),
                 "product_type": row.get("product_type"),
             })
+
+    # Canonicalize Russian display categories for cross-restaurant filters.
+    # category_et preserves the source site's more detailed section label.
+    for row in result:
+        row["category_ru"] = canonical_category_ru(
+            row.get("product_type"),
+            category_ru=row.get("category_ru"),
+            category_et=row.get("category_et"),
+            dish_name=" ".join(
+                str(row.get(key) or "")
+                for key in ("dish_name_ru", "dish_name_et", "dish_name")
+            ),
+        )
 
     paired_count = len(used_ru)
     unmatched_ru_count = len(russian_records) - paired_count
