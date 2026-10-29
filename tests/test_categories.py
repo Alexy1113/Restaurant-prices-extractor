@@ -68,6 +68,24 @@ class CategoryNormalizationTests(unittest.TestCase):
                     "Роллы",
                 )
 
+    def test_ocean_sushi_baked_gunkan_remains_gunkan(self):
+        cases = (
+            ("Küpsetatud Gunkan", "Lõhe Gunkan"),
+            ("Запечённые Гунканы", "Гункан с лососем"),
+        )
+        for category, name in cases:
+            with self.subTest(category=category, name=name):
+                product_type = get_product_type(category, name)
+                self.assertEqual(product_type, "gunkan")
+                self.assertEqual(
+                    canonical_category_ru(
+                        product_type,
+                        category_ru=category,
+                        dish_name=name,
+                    ),
+                    "Гунканы",
+                )
+
     def test_ocean_sushi_baked_section_items_are_rolls_even_without_hot_name(self):
         cases = (
             ("Запечённые", "Salmon"),
