@@ -73,7 +73,7 @@ _BURGER_MARKERS = ("burger", "бург", "бургер")
 _TORTILLA_MARKERS = ("lavash", "lavaš", "лаваш", "tortilla", "тортиль", "wrap", "врап")
 _DESSERT_MARKERS = (
     "dessert", "magustoit", "magustoid", "десерт", "морожен", "jäätis",
-    "churros", "фондан", "пончик", "профитрол", "маффин", "pannkook",
+    "churros", "фондан", "пончик", "профитрол", "маффин", "блин", "pannkook",
     "pannkoog", "pancake", "шоколадный",
 )
 _DRINK_CATEGORY_MARKERS = (
