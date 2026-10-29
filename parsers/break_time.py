@@ -524,6 +524,7 @@ def parse_language(session, language):
     visited_urls = set()
     seen_products = set()
     records = []
+    catalog_position = 0
 
     while queue and len(visited_urls) < MAX_CATALOG_PAGES:
         url = queue.pop(0)
@@ -556,6 +557,8 @@ def parse_language(session, language):
             product_type = get_product_type(category, name)
             source_id = get_card_identifier(card)
             variant = None
+            this_position = catalog_position
+            catalog_position += 1
 
             # Deduplicate repeated cards without conflating distinct WooCommerce IDs.
             if source_id:
@@ -588,6 +591,7 @@ def parse_language(session, language):
                 "category": category or None,
                 "product_type": product_type,
                 "language": language,
+                "catalog_position": this_position,
             })
             page_record_count += 1
 
@@ -677,6 +681,27 @@ def _find_translation(record, candidates):
     ]
     if len(same_price) == 1:
         return same_price[0]
+
+    # Translated product names may be completely different. As a cautious
+    # fallback, match only the exact catalog position when the canonical type
+    # and current price also agree; never match by price alone.
+    position = record.get("catalog_position")
+    price = record.get("price")
+    if position is not None and price is not None:
+        positional_matches = [
+            item for item in candidates
+            if item.get("catalog_position") == position
+            and item.get("product_type") == record.get("product_type")
+            and _record_variant_key(item) == variant
+            and item.get("price") is not None
+            and abs(float(item["price"]) - float(price)) < 0.001
+        ]
+        if len(positional_matches) == 1:
+            print(
+                "[Break Time] Переводы сопоставлены по позиции, категории и цене: "
+                f"{record.get('name')!r} / {positional_matches[0].get('name')!r}"
+            )
+            return positional_matches[0]
 
     return None
 
