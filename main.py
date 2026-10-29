@@ -14,7 +14,10 @@ from supabase import create_client, Client
 from parsers.ocean_sushi import parse_menu as parse_ocean
 from parsers.hesburger import parse_menu as parse_hesburger
 from parsers.monk import parse_menu as parse_monk
-from parsers.categories import canonical_category_ru
+from parsers.categories import (
+    canonical_category_ru,
+    canonical_category_et,
+)
 
 # Загружаем переменные из .env в корне проекта.
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -140,14 +143,23 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
         product_type = dish.get("product_type", "Другое")
         category_et = normalize_category(dish.get("category_et"))
         category_ru_source = normalize_category(dish.get("category_ru"))
+        dish_text = " ".join(
+            str(dish.get(key) or "")
+            for key in ("dish_name_ru", "dish_name_et", "dish_name")
+        )
         category_ru = canonical_category_ru(
             product_type,
             category_ru=category_ru_source,
             category_et=category_et,
-            dish_name=" ".join(
-                str(dish.get(key) or "")
-                for key in ("dish_name_ru", "dish_name_et", "dish_name")
-            ),
+            dish_name=dish_text,
+        )
+        # Save a matching canonical category in both languages. The original
+        # menu's subcategory labels should not create extra ET-only categories.
+        category_et = canonical_category_et(
+            product_type,
+            category_ru=category_ru,
+            category_et=category_et,
+            dish_name=dish_text,
         )
         now = run_timestamp
 
