@@ -18,7 +18,7 @@ LANGUAGE_CONFIG = {
     "ru": {
         "base_url": "https://monkrestoran.ee/ru/monk-johvi-2/",
         "base_path": "/ru/monk-johvi-2/",
-        "legacy_url": "https://monkrestoran.ee/johvi-rus/",
+        "legacy_url": "https://monkrestoran.ee/ru/monk-johvi-2/d181d183d0b8/",
     },
     "et": {
         "base_url": "https://monkrestoran.ee/monk-johvi/",
@@ -733,19 +733,41 @@ def parse_category(session, page, language="ru"):
         response = session.get(url, timeout=20)
         response.raise_for_status()
     except requests.RequestException as error:
-        print(f"[Monk/{language}] Не удалось загрузить категорию {url}: {error}")
+        print(f"[Monk/{language}] Не удалось загрузить меню {url}: {error}")
         return []
 
     soup = BeautifulSoup(response.text, "html.parser")
-    category = get_category_from_page(soup, page.get("label"))
-    category_pair_key = get_category_pair_key(soup, url, language, category)
+    page_category = get_category_from_page(soup, page.get("label"))
     cards = get_cards(soup)
     records = []
+    found_categories = set()
 
     for card_index, card in enumerate(cards):
         name = get_name(card)
         if not name:
             continue
+
+        # Every Monk category route appears to render the full menu. The item
+        # belongs to the nearest preceding section H2, not the page's H1
+        # ("Monk Jõhvi" / "Monk Йыхви").
+        category = get_category_before_card(card)
+        normalized_category = normalize_key(category)
+        if not category or normalized_category in {
+            "без категории", "monk johvi", "monk йыхви", "monk johvi 2",
+            "monk йыхви 2",
+        }:
+            category = page_category
+            normalized_category = normalize_key(category)
+
+        if normalized_category in {
+            "monk johvi", "monk йыхви", "monk johvi 2", "monk йыхви 2"
+        }:
+            category = "Без категории"
+
+        found_categories.add(category)
+        category_pair_key = get_category_pair_key(
+            soup, url, language, category
+        )
 
         description = get_description(card)
         base_code = get_stable_base_code(name, card)
@@ -774,8 +796,17 @@ def parse_category(session, page, language="ru"):
             match_id, category_pair_key, card_index, len(cards)
         ))
 
-    print(f"[Monk/{language}] {category}: получено записей — {len(records)}")
+    print(
+        f"[Monk/{language}] URL {url}: карточек={len(cards)}, "
+        f"категорий распознано={len(found_categories)}, записей={len(records)}"
+    )
+    if len(found_categories) <= 2:
+        print(
+            f"[Monk/{language}][ВНИМАНИЕ] Категории, извлечённые из заголовков: "
+            f"{sorted(found_categories)}"
+        )
     return records
+
 
 def get_category_before_card(card):
     """Finds the nearest section heading on Monk's legacy all-in-one menu."""
@@ -1017,18 +1048,29 @@ def merge_language_records(russian_records, estonian_records):
 
 
 def parse_menu():
-    """Parses Monk Jõhvi in Russian and Estonian and merges translations."""
+    """Parses Monk Jõhvi in Russian and Estonian, then merges translations."""
     session = requests.Session()
     session.headers.update(HEADERS)
 
     language_records = {}
     for language in ("ru", "et"):
         pages = get_category_pages(session, language)
+
+        # On the live site, each category link renders the same whole menu.
+        # Process only one representative URL per language to avoid fetching
+        # 18 copies of the same 223 product cards.
+        if len(pages) > 1:
+            print(
+                f"[Monk/{language}] Найдено {len(pages)} ссылок категорий; "
+                "обрабатываю одну страницу, содержащую всё меню."
+            )
+            pages = pages[:1]
+
         records = []
         for page in pages:
             records.extend(parse_category(session, page, language))
 
-        # The legacy all-in-one menu is currently known for Russian.
+        # Retry a known valid Russian menu route only if the first route failed.
         if language == "ru" and not records:
             records.extend(parse_legacy_menu(session))
 
