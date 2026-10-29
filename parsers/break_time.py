@@ -134,8 +134,16 @@ def normalize_product_key(value):
 
 
 def build_catalog_url(language):
-    """Start at the language's shop index; follow the site's native pagination."""
-    return LANGUAGE_URLS[language]
+    """Use the site's own "show all" option for its full WooCommerce catalog."""
+    parsed = urlparse(LANGUAGE_URLS[language])
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    # This site's visible "Kõik / Все" link encodes the value as "+-1.".
+    query.update({
+        "per_page": " -1.",
+        "per_row": "4",
+        "shop_view": "grid",
+    })
+    return urlunparse(parsed._replace(query=urlencode(query), fragment=""))
 
 
 def get_title_element(card):
@@ -623,12 +631,17 @@ def parse_language(session, language):
         page_record_count = 0
         category_key, page_offset = _catalog_context(response.url)
 
-        # The homepage contains featured products, while the full menu is
-        # distributed over WooCommerce category pages. Discover those links
-        # from the live navigation instead of assuming the homepage is the shop.
-        for category_url in _discover_category_urls(soup, response.url, language):
-            if category_url not in visited_urls and category_url not in queue:
-                queue.append(category_url)
+        # If the theme honored its visible "show all" setting, keep the
+        # scrape to one catalog request per language. Otherwise discover the
+        # category pages from the navigation as a fallback.
+        query_params = dict(parse_qsl(urlparse(response.url).query, keep_blank_values=True))
+        loaded_full_catalog = (
+            query_params.get("per_page") == " -1." and len(cards) >= 50
+        )
+        if not loaded_full_catalog:
+            for category_url in _discover_category_urls(soup, response.url, language):
+                if category_url not in visited_urls and category_url not in queue:
+                    queue.append(category_url)
 
         for card_index, card in enumerate(cards):
             name = get_name(card)
