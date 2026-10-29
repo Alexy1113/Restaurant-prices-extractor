@@ -241,6 +241,98 @@ class CategoryNormalizationTests(unittest.TestCase):
         self.assertEqual(get_product_type("Маки", "Steak Maki"), "sushi_rolls")
         self.assertEqual(get_product_type("Маки", "Ginger Maki"), "sushi_rolls")
 
+    def test_short_words_do_not_classify_food_as_drinks(self):
+        for name in ("Steak", "Steak Maki", "Ginger", "Ginger Maki"):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    canonical_category_ru(
+                        "main_courses",
+                        category_ru="Основные блюда",
+                        dish_name=name,
+                    ),
+                    "Основные блюда",
+                )
+                self.assertEqual(
+                    canonical_category_et(
+                        "main_courses",
+                        category_ru="Основные блюда",
+                        category_et="Põhiroad",
+                        dish_name=name,
+                    ),
+                    "Põhiroad",
+                )
+
+    def test_alcohol_is_detected_from_dish_name_in_generic_drinks_category(self):
+        cases = (
+            ("Gin", "Алкогольные напитки (18+)", "Alkohoolsed joogid (18+)"),
+            ("Vodka", "Алкогольные напитки (18+)", "Alkohoolsed joogid (18+)"),
+            ("Whisky", "Алкогольные напитки (18+)", "Alkohoolsed joogid (18+)"),
+            ("Gin Tonic", "Алкогольные напитки (18+)", "Alkohoolsed joogid (18+)"),
+            ("Coca-Cola", "Напитки", "Joogid"),
+        )
+        for name, expected_ru, expected_et in cases:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    canonical_category_ru(
+                        "drinks",
+                        category_ru="Напитки",
+                        category_et="Joogid",
+                        dish_name=name,
+                    ),
+                    expected_ru,
+                )
+                self.assertEqual(
+                    canonical_category_et(
+                        "drinks",
+                        category_ru="Напитки",
+                        category_et="Joogid",
+                        dish_name=name,
+                    ),
+                    expected_et,
+                )
+
+    def test_explicit_alcohol_product_type_keeps_alcohol_category(self):
+        self.assertEqual(
+            canonical_category_ru(
+                "alcoholic_drinks",
+                category_ru="Напитки",
+                dish_name="Unknown drink name",
+            ),
+            "Алкогольные напитки (18+)",
+        )
+        self.assertEqual(
+            canonical_category_et(
+                "alcoholic_drinks",
+                category_ru="Напитки",
+                category_et="Joogid",
+                dish_name="Unknown drink name",
+            ),
+            "Alkohoolsed joogid (18+)",
+        )
+
+    def test_regular_beverages_stay_in_general_drinks_category(self):
+        cases = ("Coffee", "Tea", "Coca-Cola", "Orange juice", "Lemonade")
+        for name in cases:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    canonical_category_ru(
+                        "drinks",
+                        category_ru="Напитки",
+                        category_et="Joogid",
+                        dish_name=name,
+                    ),
+                    "Напитки",
+                )
+                self.assertEqual(
+                    canonical_category_et(
+                        "drinks",
+                        category_ru="Напитки",
+                        category_et="Joogid",
+                        dish_name=name,
+                    ),
+                    "Joogid",
+                )
+
     def test_gin_tonic_still_counts_as_drink(self):
         self.assertEqual(get_product_type("Drinks", "Gin Tonic"), "drinks")
 
