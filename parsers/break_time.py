@@ -301,6 +301,26 @@ def get_categories(card):
                 }:
                     categories.append(part)
 
+    if categories:
+        return categories
+
+    # This custom WooCommerce theme sometimes only exposes category slugs in
+    # the product's class list (e.g. product_cat-kokteilid) rather than visible
+    # category links. Preserve those tags so classification still sees the
+    # site's real menu section instead of guessing from the product name alone.
+    classes = card.get("class", [])
+    if isinstance(classes, str):
+        classes = classes.split()
+    for class_name in classes:
+        match = re.match(r"^(?:product_cat|product-category)-(.+)$", str(class_name), re.I)
+        if not match:
+            continue
+        slug = clean_text(match.group(1)).replace("-", " ")
+        if slug and normalize_key(slug) not in {
+            normalize_key(item) for item in categories
+        }:
+            categories.append(slug)
+
     return categories
 
 
