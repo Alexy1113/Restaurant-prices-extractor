@@ -37,7 +37,7 @@ CATEGORY_RU_BY_PRODUCT_TYPE = {
 _ALCOHOL_RE = re.compile(
     r"(?:18\s*\+|вино|вин[ао]|шампан|игрист|слабоалког|алкогол|"
     r"wine|champagne|sparkling|beer|bier|õlu|vein|vahuvein|siider|cider|"
-    r"vodka|whisk(?:y|e)y|rum|tequila|prosecco|moscato|pinot|sinebrychoff|"
+    r"vodka|whisk(?:y|ey)|rum|tequila|prosecco|moscato|pinot|sinebrychoff|"
     r"somersby|saku|raasiku|maschio|gin tonic)",
     re.IGNORECASE,
 )
