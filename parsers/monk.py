@@ -542,6 +542,71 @@ def parse_category(session, page):
     return records
 
 
+
+def get_category_before_card(card):
+    """Finds the nearest section heading on Monk's legacy all-in-one menu."""
+    for heading in card.find_all_previous("h2"):
+        # Ignore an h2 that is actually a product title inside the previous card.
+        is_product_heading = False
+        for parent in heading.parents:
+            classes = parent.get("class", []) if hasattr(parent, "get") else []
+            if isinstance(classes, str):
+                classes = [classes]
+            if any(cls in {"product", "ee-post"} for cls in classes):
+                is_product_heading = True
+                break
+        if is_product_heading:
+            continue
+
+        label = clean_text(heading.get_text(" ", strip=True))
+        if label:
+            return label
+
+    return "Без категории"
+
+
+def parse_legacy_menu(session):
+    """Supplement category-page results from the legacy all-in-one Monk menu."""
+    try:
+        response = session.get(LEGACY_MENU_URL, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException as error:
+        print(f"[Monk] Не удалось загрузить резервное меню: {error}")
+        return []
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    cards = get_cards(soup)
+    records = []
+
+    for card in cards:
+        name = get_name(card)
+        if not name:
+            continue
+
+        category = get_category_before_card(card)
+        description = get_description(card)
+        base_code = get_stable_base_code(name)
+        variant_prices = extract_variant_prices(card.get_text(" ", strip=True))
+
+        if variant_prices:
+            for index, (variant, price) in enumerate(variant_prices):
+                dish_code = (
+                    base_code if index == 0
+                    else f"{base_code}:variant:{make_variant_slug(variant)}"
+                )
+                records.append(make_record(name, category, dish_code, price, variant))
+            continue
+
+        price = get_price(card)
+        if price is None or price <= 0:
+            continue
+
+        price_variant = extract_single_quantity(description)
+        records.append(make_record(name, category, base_code, price, price_variant))
+
+    print(f"[Monk] Резервное меню: получено записей — {len(records)}")
+    return records
+
 def make_record(name, category, dish_code, price, price_variant):
     # Monk's Russian menu sometimes uses English names, which are also useful
     # in the Estonian view. Keep an Estonian name only when the title is not Cyrillic.
@@ -580,6 +645,16 @@ def parse_menu():
             )
             if key not in merged:
                 merged[key] = dish
+
+    # Supplement the category pages from the all-in-one menu. Existing category-page
+    # rows win on duplicates because they were collected first.
+    for dish in parse_legacy_menu(session):
+        key = (
+            normalize_key(dish.get("dish_name")),
+            normalize_key(dish.get("price_variant")),
+        )
+        if key not in merged:
+            merged[key] = dish
 
     result = list(merged.values())
     print(f"[Monk] После удаления повторов: {len(result)} записей")
