@@ -7,7 +7,6 @@ matched translations, and maps source categories into the shared project taxonom
 import hashlib
 import re
 import unicodedata
-from collections import defaultdict
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
@@ -66,7 +65,7 @@ _SET_CATEGORY_MARKERS = (
 )
 _SET_NAME_MARKERS = (
     "combo", "kombo", "комбо", "комбо-набор", "набор", "меню",
-    "set menu", "burger eine", "burgeri eine",
+    "menu", "set menu", "burger eine", "burgeri eine",
 )
 _BURGER_MARKERS = ("burger", "бург", "бургер")
 _TORTILLA_MARKERS = ("lavash", "lavaš", "лаваш", "tortilla", "тортиль", "wrap", "врап")
@@ -213,11 +212,11 @@ def get_price(card):
         "[class*='price']",
     ):
         elements = card.select(selector)
-        parsed = [
-            price
-            for element in elements
-            if (price := _parse_price(element.get_text(" ", strip=True))) is not None
-        ]
+        parsed = []
+        for element in elements:
+            price = _parse_price(element.get_text(" ", strip=True))
+            if price is not None:
+                parsed.append(price)
         if parsed:
             return parsed[-1]
 
