@@ -85,7 +85,6 @@ FALLBACK_CATEGORY_URLS = [
     "https://monkrestoran.ee/ru/monk-johvi-2/d181d183d188d0b8/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b7d0b0d0bad183d181d0bad0b8/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b1d0bbd18ed0b4d0b0-d0bdd0b0-d181d0bad0bed0b2d0bed180d0bed0b4d0b5/",
-    "https://monkrestoran.ee/ru/monk-johvi-2/d0b1d0bbd18ed0b4d0b0-d0bdd0b0-d181d0bad0bed0b2d0bed180d0b5/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d185d0bbd0b5d0b1/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b2d0b5d181d0b5d0bdd0bdd0b8d0b5-d180d183d0bbd0b5d182d18b-d0b8-d0b2d180d0b0d0bfd18b/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d181d0b0d0bbd0b0d182d18b/",
@@ -580,7 +579,7 @@ def get_category_pages(session, language="ru"):
     if language == "et":
         fallback_urls = [url.replace("/ru/", "/et/", 1) for url in FALLBACK_CATEGORY_URLS]
 
-    if language == "ru" or not pages:
+    if not pages:
         for url in fallback_urls:
             path = urlparse(url).path.rstrip("/") + "/"
             if path.startswith(config["base_path"]):
