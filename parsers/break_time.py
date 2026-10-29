@@ -163,7 +163,7 @@ _MAIN_NAME_MARKERS = (
 )
 _SAUCE_ONLY_NAME_RE = re.compile(
     r"^(?:(?:extra|lisakaste|дополнительный)\s+)?"
-    r"(?:sauce|kastmed?|kaste|соус(?:ы)?)(?:\\b|$)",
+    r"(?:sauce|kastmed?|kaste|соус(?:ы)?)(?:\b|$)",
     re.IGNORECASE,
 )
 _SAUCE_MARKERS = ("kastmed", "sauce", "соус", "соусы")
