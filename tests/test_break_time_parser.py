@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 
 from parsers.break_time import (
     get_cards,
+    get_categories,
     get_price,
     get_product_type,
     merge_language_records,
@@ -104,6 +105,21 @@ class BreakTimeCatalogDiscoveryTests(unittest.TestCase):
         )
         self.assertEqual(ru, ("burgerid", 12))
         self.assertEqual(et, ru)
+
+
+class BreakTimeCategorySlugTests(unittest.TestCase):
+    def test_category_slug_fallback_reads_custom_theme_classes(self):
+        soup = BeautifulSoup(
+            '<li class="product product_cat-kokteilid"><h2>Virsiku kokteil</h2></li>',
+            "html.parser",
+        )
+        card = soup.select_one("li.product")
+        categories = get_categories(card)
+        self.assertEqual(categories, ["kokteilid"])
+        self.assertEqual(get_product_type(" ".join(categories), "Virsiku kokteil"), "ice_cream_shakes")
+
+    def test_estonian_lavas_slug_maps_to_tortillas(self):
+        self.assertEqual(get_product_type("lavas", "Kana lavašš"), "tortillas")
 
 
 class BreakTimeHtmlTests(unittest.TestCase):
