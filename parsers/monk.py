@@ -930,6 +930,8 @@ def deduplicate_language_records(records):
 
 def merge_language_records(russian_records, estonian_records):
     """Merges Russian and Estonian menu rows while preserving both localized fields."""
+    original_ru_count = len(russian_records)
+    original_et_count = len(estonian_records)
     russian_records = deduplicate_language_records(russian_records)
     estonian_records = deduplicate_language_records(estonian_records)
 
@@ -1045,6 +1047,33 @@ def merge_language_records(russian_records, estonian_records):
                 "price_variant": row.get("price_variant"),
                 "product_type": row.get("product_type"),
             })
+
+    paired_count = len(used_ru)
+    unmatched_ru_count = len(russian_records) - paired_count
+    unmatched_et_count = len(estonian_records) - paired_count
+    missing_ru_name = sum(not row.get("dish_name_ru") for row in result)
+    missing_et_name = sum(not row.get("dish_name_et") for row in result)
+    missing_ru_category = sum(not row.get("category_ru") for row in result)
+    missing_et_category = sum(not row.get("category_et") for row in result)
+
+    codes = [str(row.get("dish_code")) for row in result if row.get("dish_code") is not None]
+    duplicate_code_count = len(codes) - len(set(codes))
+
+    print(
+        "[Monk][Проверка] "
+        f"RU↔ET сопоставлено: {paired_count}; "
+        f"без пары RU: {unmatched_ru_count}; без пары ET: {unmatched_et_count}; "
+        f"удалено повторов до объединения RU/ET: "
+        f"{original_ru_count - len(russian_records)}/{original_et_count - len(estonian_records)}."
+    )
+    print(
+        "[Monk][Проверка] "
+        f"без русского названия: {missing_ru_name}; "
+        f"без эстонского названия: {missing_et_name}; "
+        f"без русской категории: {missing_ru_category}; "
+        f"без эстонской категории: {missing_et_category}; "
+        f"повторяющихся dish_code: {duplicate_code_count}."
+    )
 
     return result
 
