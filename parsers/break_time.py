@@ -7,6 +7,7 @@ matched translations, and maps source categories into the shared project taxonom
 import hashlib
 import re
 import unicodedata
+import time
 from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
@@ -25,6 +26,8 @@ LANGUAGE_URLS = {
     "ru": urljoin(BASE_URL, "ru/"),
 }
 MAX_CATALOG_PAGES = 60
+REQUEST_DELAY_SECONDS = 1.8
+MAX_REQUEST_RETRIES = 3
 
 HEADERS = {
     "User-Agent": (
@@ -134,16 +137,36 @@ def normalize_product_key(value):
 
 
 def build_catalog_url(language):
-    """Use the site's own "show all" option for its full WooCommerce catalog."""
-    parsed = urlparse(LANGUAGE_URLS[language])
-    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    # This site's visible "Kõik / Все" link encodes the value as "+-1.".
-    query.update({
-        "per_page": " -1.",
-        "per_row": "4",
-        "shop_view": "grid",
-    })
-    return urlunparse(parsed._replace(query=urlencode(query), fragment=""))
+    """Start from the live homepage; its category navigation links to the menu."""
+    return LANGUAGE_URLS[language]
+
+
+def _get_page(session, url):
+    """Fetch a page politely and retry temporary HTTP 429 responses."""
+    for attempt in range(MAX_REQUEST_RETRIES + 1):
+        response = session.get(url, timeout=30)
+        if response.status_code != 429:
+            response.raise_for_status()
+            # Avoid hammering the menu site while following its category pages.
+            time.sleep(REQUEST_DELAY_SECONDS)
+            return response
+
+        if attempt >= MAX_REQUEST_RETRIES:
+            response.raise_for_status()
+
+        retry_after = response.headers.get("Retry-After", "")
+        try:
+            delay = max(float(retry_after), 3.0)
+        except (TypeError, ValueError):
+            delay = min(5.0 * (2 ** attempt), 30.0)
+        print(
+            f"[Break Time] Сайт ограничил частоту запросов (429). "
+            f"Повтор через {delay:g} сек.; попытка {attempt + 2}/"
+            f"{MAX_REQUEST_RETRIES + 1}."
+        )
+        time.sleep(delay)
+
+    raise RuntimeError(f"Не удалось загрузить {url}")
 
 
 def get_title_element(card):
@@ -620,10 +643,15 @@ def parse_language(session, language):
         visited_urls.add(url)
 
         try:
-            response = session.get(url, timeout=30)
-            response.raise_for_status()
+            response = _get_page(session, url)
         except requests.RequestException as error:
             print(f"[Break Time/{language}] Не удалось загрузить {url}: {error}")
+            if getattr(getattr(error, "response", None), "status_code", None) == 429:
+                print(
+                    f"[Break Time/{language}] Останавливаю обход языка, "
+                    "чтобы не продолжать запросы после ограничения сайта."
+                )
+                break
             continue
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -631,17 +659,11 @@ def parse_language(session, language):
         page_record_count = 0
         category_key, page_offset = _catalog_context(response.url)
 
-        # If the theme honored its visible "show all" setting, keep the
-        # scrape to one catalog request per language. Otherwise discover the
-        # category pages from the navigation as a fallback.
-        query_params = dict(parse_qsl(urlparse(response.url).query, keep_blank_values=True))
-        loaded_full_catalog = (
-            query_params.get("per_page") == " -1." and len(cards) >= 50
-        )
-        if not loaded_full_catalog:
-            for category_url in _discover_category_urls(soup, response.url, language):
-                if category_url not in visited_urls and category_url not in queue:
-                    queue.append(category_url)
+        # The homepage has only featured products; the full catalog lives
+        # on separate category pages discovered in the site's own navigation.
+        for category_url in _discover_category_urls(soup, response.url, language):
+            if category_url not in visited_urls and category_url not in queue:
+                queue.append(category_url)
 
         for card_index, card in enumerate(cards):
             name = get_name(card)
