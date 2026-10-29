@@ -135,16 +135,8 @@ def normalize_product_key(value):
 
 
 def build_catalog_url(language):
-    """Request the whole WooCommerce catalog when the theme supports per_page."""
-    base = LANGUAGE_URLS[language]
-    parsed = urlparse(base)
-    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    query.update({
-        "per_page": "-1",
-        "per_row": "4",
-        "shop_view": "grid",
-    })
-    return urlunparse(parsed._replace(query=urlencode(query)))
+    """Start at the language's shop index; follow the site's native pagination."""
+    return LANGUAGE_URLS[language]
 
 
 def get_title_element(card):
@@ -382,12 +374,14 @@ def get_product_type(category, name):
     # Estonian Eine section. Plain fries under Eine are still a side dish.
     if has_any(category_text, _SET_CATEGORY_MARKERS):
         return "sets"
+    # On this menu, the Estonian "Eine" category contains both burger meals
+    # and plain sides. Keep products such as fries in sides, but classify an
+    # actual meal even when its name does not contain the word "burger".
+    if "eine" in category_text and not has_any(name_text, _SIDE_MARKERS):
+        return "sets"
     if has_any(name_text, _SET_NAME_MARKERS):
         return "sets"
-    if (
-        "eine" in name_text
-        and not has_any(name_text, _SIDE_MARKERS)
-    ):
+    if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
 
     # A dedicated Lavash category is more specific than ingredients in its title.
@@ -503,14 +497,15 @@ def _pagination_urls(soup, current_url, language):
         if language == "et" and is_ru_path:
             continue
 
+        # Follow the site's own pagination URL as-is. Its custom "show all"
+        # link uses a malformed per_page value on some responses, so do not
+        # inject theme-specific page-size parameters into every request.
         query = dict(parse_qsl(parsed.query, keep_blank_values=True))
         query.pop("add-to-cart", None)
-        query.update({
-            "per_page": "-1",
-            "per_row": "4",
-            "shop_view": "grid",
-        })
-        url = urlunparse(parsed._replace(query=urlencode(query), fragment=""))
+        url = urlunparse(parsed._replace(
+            query=urlencode(query) if query else "",
+            fragment="",
+        ))
         if url != current_url and url not in result:
             result.append(url)
 
