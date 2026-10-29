@@ -76,6 +76,26 @@ class CategoryNormalizationTests(unittest.TestCase):
                     expected_et,
                 )
 
+    def test_unknown_category_does_not_create_et_only_group_when_ru_is_generic(self):
+        self.assertEqual(
+            canonical_category_et(
+                "other",
+                category_ru="Другое",
+                category_et="Küpsetatud",
+            ),
+            "Muu",
+        )
+        # If Russian has a meaningful, unclassified category, retain its ET
+        # counterpart rather than inventing a product type.
+        self.assertEqual(
+            canonical_category_et(
+                "other",
+                category_ru="Запечённые",
+                category_et="Küpsetatud",
+            ),
+            "Küpsetatud",
+        )
+
     def test_standalone_tempura_stays_separate(self):
         self.assertEqual(
             canonical_category_ru("tempura", "Темпура", "Tempura", "Kana tempura"),
