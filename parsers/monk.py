@@ -613,12 +613,16 @@ def make_record(name, category, dish_code, price, price_variant):
     has_cyrillic = bool(re.search(r"[А-Яа-яЁё]", name))
     name_et = None if has_cyrillic else name
 
+    category_text = clean_text(category)
+    if normalize_key(category_text) in {"", "без категории", "monk johvi"}:
+        category_text = None
+
     return {
         "dish_code": dish_code,
         "dish_name": name,
         "dish_name_ru": name,
         "dish_name_et": name_et,
-        "category_ru": category or None,
+        "category_ru": category_text,
         "category_et": None,
         "price": float(price),
         "price_variant": price_variant,
@@ -646,15 +650,17 @@ def parse_menu():
             if key not in merged:
                 merged[key] = dish
 
-    # Supplement the category pages from the all-in-one menu. Existing category-page
-    # rows win on duplicates because they were collected first.
-    for dish in parse_legacy_menu(session):
-        key = (
-            normalize_key(dish.get("dish_name")),
-            normalize_key(dish.get("price_variant")),
-        )
-        if key not in merged:
-            merged[key] = dish
+    # Use the all-in-one legacy menu only if none of the category pages
+    # returned usable records. This avoids introducing duplicates from older
+    # product titles when the current category pages are working.
+    if not merged:
+        for dish in parse_legacy_menu(session):
+            key = (
+                normalize_key(dish.get("dish_name")),
+                normalize_key(dish.get("price_variant")),
+            )
+            if key not in merged:
+                merged[key] = dish
 
     result = list(merged.values())
     print(f"[Monk] После удаления повторов: {len(result)} записей")
