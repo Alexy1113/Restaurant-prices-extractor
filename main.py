@@ -307,7 +307,7 @@ def main():
     if args.dry_run:
         print("[Main] Режим dry-run: данные в Supabase записываться не будут.")
         for _, (parser_function, restaurant_name) in selected_parsers:
-            print(f"\\n[Main] Запускаю парсер: {restaurant_name}")
+            print(f"\n[Main] Запускаю парсер: {restaurant_name}")
             try:
                 data = parser_function()
                 print(f"[Main] {restaurant_name}: получено записей — {len(data or [])}; запись в Supabase пропущена.")
@@ -317,7 +317,7 @@ def main():
         for _, (parser_function, restaurant_name) in selected_parsers:
             run_parser(parser_function, restaurant_name)
 
-    print("\\n=== МОНИТОРИНГ ЗАВЕРШЁН ===")
+    print("\n=== МОНИТОРИНГ ЗАВЕРШЁН ===")
 
 
 # Запускать main() только при запуске этого файла напрямую.
