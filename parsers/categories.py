@@ -190,6 +190,11 @@ def canonical_category_et(
     if mapped_from_ru and russian_key not in generic_ru_categories:
         return mapped_from_ru
 
+    # If Russian classification is generic, keep both fields generic too.
+    # Otherwise the ET source might create a separate category absent in RU.
+    if product_type == "other" and russian_key in generic_ru_categories:
+        return "Muu"
+
     # If classification is unknown, preserve an informative source category
     # rather than guessing. Known category types are normalized above.
     if estonian_category and estonian_category.casefold() not in {
