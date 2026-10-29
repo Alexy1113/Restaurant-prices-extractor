@@ -63,6 +63,51 @@ CATEGORY_PATH_MARKERS = (
     "kategoriya-produkta",
 )
 
+# The current front page is a landing page, not the complete shop archive.
+# Seed its 20 menu categories explicitly as a fallback because some rendered
+# home-page versions expose the category tiles without ordinary anchor links.
+KNOWN_CATEGORY_PATHS = (
+    "shawarma",
+    "burgerid",
+    "grill",
+    "kombineeritud",
+    "eine",
+    "hommikusook",
+    "praad",
+    "lavash",
+    "salat",
+    "hot-dog",
+    "kebab",
+    "nuudlid",
+    "suupisted",
+    "supid",
+    "magustoit",
+    "joogid",
+    "joogid/kuumad-joogid",
+    "joogid/kokteilid",
+    "alkohoolsed-joogid",
+    "kastmed",
+)
+
+_POPULAR_SECTION_TITLE_MARKERS = (
+    "populaarsed valikud",
+    "populaarsed toidud",
+    "popular choices",
+    "popular dishes",
+    "popular products",
+    "популярные блюда",
+    "популярные товары",
+    "популярные позиции",
+    "популярное",
+)
+
+_POPULAR_CONTAINER_MARKERS = (
+    "popular",
+    "populaarsed",
+    "featured-products",
+    "featured-dishes",
+)
+
 _SET_CATEGORY_MARKERS = (
     "kombo", "kombineeritud", "combo", "set menu", "набор", "комбо",
     "комплект", "sets", "komplektid",
@@ -259,6 +304,36 @@ def _is_category_url(url):
     return any(marker in path for marker in CATEGORY_PATH_MARKERS)
 
 
+def _is_popular_section_card(card):
+    """Return True when a product card belongs to the homepage popular block."""
+    for ancestor in card.parents:
+        if not getattr(ancestor, "attrs", None):
+            continue
+
+        classes = ancestor.get("class", [])
+        if isinstance(classes, str):
+            classes = classes.split()
+        identity = normalize_text(" ".join(
+            [str(ancestor.get("id", "")), *(str(item) for item in classes),
+             str(ancestor.get("aria-label", "")), str(ancestor.get("data-title", ""))]
+        ))
+        if any(marker in identity for marker in _POPULAR_CONTAINER_MARKERS):
+            return True
+
+        # Keep the heading check scoped to a semantic section. Looking at the
+        # entire page body would also hide normal category products.
+        if ancestor.name == "section":
+            for heading in ancestor.select("h1, h2, h3, h4, h5, h6"):
+                heading_key = normalize_key(heading.get_text(" ", strip=True))
+                if any(marker in heading_key for marker in _POPULAR_SECTION_TITLE_MARKERS):
+                    return True
+
+        if ancestor.name in {"body", "html"}:
+            break
+
+    return False
+
+
 def get_categories(card):
     """Read product-category labels from the card's category links or badges."""
     categories = []
@@ -404,6 +479,9 @@ def get_cards(soup):
         if parent_product is not None and get_title_element(parent_product):
             continue
 
+        if _is_popular_section_card(card):
+            continue
+
         if not get_title_element(card):
             continue
         if get_price(card) is None:
@@ -533,6 +611,15 @@ def get_product_type(category, name):
         return "main_courses"
 
     return "main_courses"
+
+
+def _known_category_urls(language):
+    """Build the current 20 menu-category URLs for both language archives."""
+    prefix = "ru/" if language == "ru" else ""
+    return [
+        urljoin(BASE_URL, f"{prefix}tootekategooria/{path}/")
+        for path in KNOWN_CATEGORY_PATHS
+    ]
 
 
 def _discover_category_urls(soup, current_url, language):
@@ -702,11 +789,32 @@ def parse_language(session, language):
         page_record_count = 0
         category_key, page_offset = _catalog_context(response.url)
 
-        # The homepage has only featured products; the full catalog lives
-        # on separate category pages discovered in the site's own navigation.
-        for category_url in _discover_category_urls(soup, response.url, language):
+        # The homepage may contain only featured products. Discover category
+        # links from the page, then seed all known menu categories on the first
+        # request so a changed/dynamically rendered navigation cannot truncate
+        # the scrape to the eight "Popular" cards.
+        discovered_category_urls = _discover_category_urls(
+            soup, response.url, language
+        )
+        category_urls = list(discovered_category_urls)
+        fallback_urls_added = 0
+        if url == initial_url:
+            for category_url in _known_category_urls(language):
+                if category_url not in category_urls:
+                    category_urls.append(category_url)
+                    fallback_urls_added += 1
+
+        for category_url in category_urls:
             if category_url not in visited_urls and category_url not in queue:
                 queue.append(category_url)
+
+        if url == initial_url:
+            print(
+                f"[Break Time/{language}] Категории: ссылок найдено="
+                f"{len(discovered_category_urls)}, резервных добавлено="
+                f"{fallback_urls_added}",
+                flush=True,
+            )
 
         for card_index, card in enumerate(cards):
             name = get_name(card)
@@ -766,7 +874,15 @@ def parse_language(session, language):
             flush=True,
         )
 
-        for next_url in _pagination_urls(soup, url, language):
+        # The Russian /ru/ entry point is the all-products shop archive. Its
+        # global pagination repeats products already covered by the category
+        # archives and needlessly consumes the page budget; paginate category
+        # pages only.
+        pagination_urls = _pagination_urls(soup, url, language)
+        if url == initial_url and category_urls:
+            pagination_urls = []
+
+        for next_url in pagination_urls:
             if next_url not in visited_urls and next_url not in queue:
                 queue.append(next_url)
 
