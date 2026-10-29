@@ -35,12 +35,17 @@ CATEGORY_RU_BY_PRODUCT_TYPE = {
 }
 
 _ALCOHOL_RE = re.compile(
-    r"(?:18\s*\+|вино|вин[ао]|шампан|игрист|слабоалког|алкогол|"
-    r"wine|champagne|sparkling|beer|bier|õlu|vein|vahuvein|siider|cider|"
+    r"(?:18\s*\+|\b(?:вино|вин[ао]|шампан\w*|игрист\w*|слабоалког\w*|алкогол\w*|"
+    r"wine|champagne|sparkling|beer|bier|õlu|vein\w*|vahuvein\w*|siider|cider|"
     r"vodka|whisk(?:y|ey)|rum|tequila|prosecco|moscato|pinot|sinebrychoff|"
-    r"somersby|saku|raasiku|maschio|gin tonic)",
+    r"somersby|saku|raasiku|maschio|gin tonic)\b|\bgin\b)",
     re.IGNORECASE,
 )
+_ALCOHOL_PRODUCT_TYPES = {"alcoholic_drinks", "alcoholicdrinks"}
+_DRINK_PRODUCT_TYPES = {
+    "drinks", "ice_cream_shakes", "hot_drinks", "hotdrinks",
+    "cocktails", "cocktail", *_ALCOHOL_PRODUCT_TYPES,
+}
 _SUSHI_CATEGORY_RE = re.compile(r"\b(?:суши|sushi)\b", re.IGNORECASE)
 _ROLL_RE = re.compile(
     r"(?:\brolls?\b|\brull\w*|\bmaki\b|\bhosomaki\b|"
@@ -108,31 +113,41 @@ CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
 }
 
 
+def _is_alcoholic(source_text, product_type=None):
+    """Detect alcohol from either source category or item name."""
+    product_type = str(product_type or "").strip().casefold()
+    if product_type in _ALCOHOL_PRODUCT_TYPES:
+        return True
+    return bool(_ALCOHOL_RE.search(str(source_text or "")))
+
+
 def _is_drink_like(source_text, product_type=None):
-    """Return True for hot drinks, cocktails, shakes and alcoholic beverages."""
+    """Return True for beverages without matching accidental substrings.
+
+    Use word boundaries for short Latin words such as 'tea' and 'gin':
+    otherwise 'steak' and 'ginger' are incorrectly treated as beverages.
+    """
     text = " ".join(str(source_text or "").split()).casefold()
     product_type = str(product_type or "").casefold()
 
-    drink_markers = (
-        "drink", "drinks", "beverage", "beverages",
-        "joog", "joogid", "jook", "kohv", "coffee", "espresso", "cappuccino",
-        "latte", "tee", "tea", "limonaad", "lemonade", "kokteil", "cocktail",
-        "milkshake", "shake", "soda", "cola", "fanta", "sprite",
-        "alkohol", "alcohol", "beer", "bier", "wine", "vin", "õlu", "vein",
-        "vahuvein", "siider", "cider", "whisky", "whiskey", "vodka", "rum",
-        "gin", "prosecco", "hot drink", "hot drinks",
-        "горячий напиток", "горячие напитки", "напиток", "напитки",
-        "коктейл", "алкоголь", "пиво", "вино", "чай", "кофе", "сок",
-        "молочный коктейль", "jäätisekokteil", "milk shake",
-    )
-
-    if product_type in {
-        "drinks", "ice_cream_shakes", "hot_drinks", "hotdrinks",
-        "cocktails", "cocktail", "alcoholic_drinks", "alcoholicdrinks",
-    }:
+    if product_type in _DRINK_PRODUCT_TYPES:
         return True
 
-    return any(marker in text for marker in drink_markers)
+    drink_pattern = re.compile(
+        r"(?:"
+        r"\b(?:drink|drinks|beverage|beverages|coffee|espresso|cappuccino|"
+        r"latte|tea|lemonade|cocktail|milkshake|shake|soda|cola|fanta|sprite|"
+        r"beer|bier|wine|vodka|whisky|whiskey|rum|gin|prosecco|"
+        r"hot drinks?)\b|"
+        r"\b(?:joog\w*|jook|kohv\w*|tee|limonaad\w*|kokteil\w*|"
+        r"alkohol\w*|alcohol\w*|õlu|vein\w*|vahuvein\w*|siider|cider)\b|"
+        r"\b(?:напит\w*|горяч\w* напит\w*|коктейл\w*|алкогол\w*|"
+        r"пив\w*|вин\w*|ча\w*|кофе|сок\w*|молочн\w* коктейл\w*)\b|"
+        r"jäätisekokteil|milk shake"
+        r")",
+        re.IGNORECASE,
+    )
+    return bool(drink_pattern.search(text))
 
 
 def canonical_category_ru(
@@ -151,7 +166,7 @@ def canonical_category_ru(
 
     # All beverage-like rows are normalized into a single shared category.
     if _is_drink_like(source_text, product_type):
-        if _ALCOHOL_RE.search(source_categories):
+        if _is_alcoholic(source_text, product_type):
             return "Алкогольные напитки (18+)"
         return "Напитки"
 
