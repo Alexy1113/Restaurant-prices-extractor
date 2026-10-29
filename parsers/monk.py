@@ -249,6 +249,11 @@ def get_product_type(category, name):
     name_text = normalize_text(name)
     all_text = f"{category_text} {name_text}"
 
+    # Monk's baked sushi section is a preparation style, not a separate
+    # display category. Normalize it to rolls in both Russian and Estonian.
+    if any(marker in category_text for marker in ("запечен", "baked", "kupset")):
+        return "sushi_rolls"
+
     # First identify types that are useful across restaurants.
     if any(word in all_text for word in ("десерт", "dessert", "magustoit", "jäätis", "морожен", "cake", "gulab jamun")):
         return "desserts"
