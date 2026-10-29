@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 # Инструменты для подключения к Supabase.
 from supabase import create_client, Client
 
-# Импортируем парсеры двух ресторанов под разными именами.
+# Импортируем парсеры ресторанов под разными именами.
 from parsers.ocean_sushi import parse_menu as parse_ocean
 from parsers.hesburger import parse_menu as parse_hesburger
 from parsers.monk import parse_menu as parse_monk
