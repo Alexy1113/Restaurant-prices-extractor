@@ -30,6 +30,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
   live-site-smoke-test:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,30 +44,6 @@ jobs:
 
       - name: Install parser dependencies
         run: python -m pip install --upgrade pip requests beautifulsoup4
-
-      - name: Diagnose the live catalog HTML
-        run: |
-          python - <<'PY'
-          import requests
-          from bs4 import BeautifulSoup
-          from parsers.break_time import HEADERS, LANGUAGE_URLS, build_catalog_url, get_cards, get_name, get_price, _pagination_urls
-
-          session = requests.Session()
-          session.headers.update(HEADERS)
-          for language in LANGUAGE_URLS:
-              url = build_catalog_url(language)
-              response = session.get(url, timeout=30)
-              soup = BeautifulSoup(response.text, "html.parser")
-              print(f"DIAG {language}: status={response.status_code}, final_url={response.url}, title={soup.title.get_text(strip=True) if soup.title else None}")
-              for selector in ("ul.products li.product", ".products .product", "li.product", ".product", ".ee-post", "article", "a.page-numbers[href]"):
-                  print(f"  selector {selector!r}: {len(soup.select(selector))}")
-              cards = get_cards(soup)
-              print(f"  get_cards={len(cards)}")
-              for card in cards[:3]:
-                  print(f"  sample: name={get_name(card)!r}, price={get_price(card)!r}, classes={card.get('class')}, id={card.get('id')!r}")
-              print(f"  pagination={_pagination_urls(soup, response.url, language)[:8]}")
-              print(f"  visible text={soup.get_text(' ', strip=True)[:500]}")
-          PY
 
       - name: Parse live RU and ET menus without writing to Supabase
         run: |
