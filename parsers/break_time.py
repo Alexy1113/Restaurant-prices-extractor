@@ -304,6 +304,13 @@ def _is_category_url(url):
     return any(marker in path for marker in CATEGORY_PATH_MARKERS)
 
 
+def _url_matches_language(url, language):
+    """Prevent a language crawl from accepting pages redirected to the other locale."""
+    path = urlparse(url).path.casefold()
+    is_russian = path == "/ru" or path.startswith("/ru/")
+    return is_russian if language == "ru" else not is_russian
+
+
 def _is_popular_section_card(card):
     """Return True when a product card belongs to the homepage popular block."""
     for ancestor in card.parents:
@@ -781,6 +788,14 @@ def parse_language(session, language):
                 break
             continue
 
+        if not _url_matches_language(response.url, language):
+            print(
+                f"[Break Time/{language}][ВНИМАНИЕ] Пропускаю страницу: "
+                f"сайт перенаправил на другой язык ({response.url}).",
+                flush=True,
+            )
+            continue
+
         soup = BeautifulSoup(response.text, "html.parser")
         cards = get_cards(soup)
         page_record_count = 0
@@ -1092,19 +1107,23 @@ def merge_language_records(russian_records, estonian_records):
     return merged
 
 
-def parse_menu():
-    """Parse both language catalogs and return rows compatible with main.py."""
+def _new_session():
+    """Create an isolated HTTP session so locale cookies cannot leak across languages."""
     session = requests.Session()
     session.headers.update(HEADERS)
+    return session
 
+
+def parse_menu():
+    """Parse both language catalogs with isolated sessions for each locale."""
     try:
-        russian_records = parse_language(session, "ru")
+        russian_records = parse_language(_new_session(), "ru")
     except Exception as error:
         print(f"[Break Time/ru] Ошибка парсинга: {error}")
         russian_records = []
 
     try:
-        estonian_records = parse_language(session, "et")
+        estonian_records = parse_language(_new_session(), "et")
     except Exception as error:
         print(f"[Break Time/et] Ошибка парсинга: {error}")
         estonian_records = []
