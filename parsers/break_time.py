@@ -440,11 +440,11 @@ def get_product_type(category, name):
         return "sets"
 
     # A dedicated Lavash category is more specific than ingredients in its title.
-    if has_any(category_text, ("lavash", "lavaš", "лаваш")):
+    if has_any(category_text, ("lavash", "lavas", "lavass", "лаваш")):
         return "tortillas"
     if has_any(category_text, ("tortilla", "тортиль")):
         return "tortillas"
-    if has_any(name_text, ("wrap", "tortilla", "тортиль", "врап")):
+    if has_any(name_text, ("lavash", "lavas", "lavass", "лаваш", "wrap", "tortilla", "тортиль", "врап")):
         return "tortillas"
 
     # Product names/categories are more reliable than secondary labels on
