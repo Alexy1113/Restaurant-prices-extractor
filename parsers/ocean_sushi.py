@@ -4,6 +4,8 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
+from parsers.categories import canonical_category_ru
+
 
 MENU_URLS = {
     "ru": "https://johvi.oceansushi.ee/ru/menu/",
@@ -60,11 +62,17 @@ def get_product_type(category, name):
     # Иногда тип можно понять по категории, а иногда — по названию.
     text = f"{category_text} {name_text}"
 
-    # Вспомогательная функция:
-    # возвращает True, если хотя бы одно ключевое слово
-    # найдено в категории или названии блюда.
+    # Вспомогательные проверки: обычные ключевые слова ищем по подстроке,
+    # а короткие слова (tea, gin, beer и т. п.) — только целиком, чтобы
+    # "steak" или "ginger" не превращали роллы в напитки.
     def has_any(keywords):
         return any(keyword in text for keyword in keywords)
+
+    def has_whole_word(keywords):
+        return any(
+            re.search(rf"(?<!\\w){re.escape(keyword)}(?!\\w)", text)
+            for keyword in keywords
+        )
 
     # Syrups are add-ons, not drinks. Match them before checking coffee words.
     if has_any(["siirup", "syrup", "siroop", "сироп"]):
@@ -79,14 +87,17 @@ def get_product_type(category, name):
         "напит", "вода", "сок", "лимонад", "пиво", "вино",
         "шампан", "кофе", "чай", "тоник", "безалкоголь",
         "drink", "beverage", "water", "juice", "lemonade",
-        "beer", "wine", "champagne", "coffee", "tea",
+        "champagne",
         "joog", "jook", "vesi", "mahl", "limonaad",
-        "õlu", "vein", "kohv", "toonik", "alkoholivaba",
+        "õlu", "vein", "toonik", "alkoholivaba",
         "coca-cola", "coca cola", "fanta", "sprite",
         "fuzetea", "sinebrychoff", "somersby",
         "prosecco", "moscato", "pinot", "saku",
         "raasiku", "kirin", "haage", "lacrima",
-        "maschio", "takara plum", "armenia", "gin "
+        "maschio", "takara plum", "armenia"
+    ]) or has_whole_word([
+        "beer", "wine", "coffee", "tea", "kohv", "gin", "whisky",
+        "whiskey", "rum", "vodka", "õlu", "vein", "cider", "siider"
     ]):
         return "drinks"
 
@@ -634,6 +645,12 @@ def parse_menu():
             product_type = get_product_type(
                 f"{category_ru or ''} {category_et or ''}",
                 f"{name_ru or ''} {name_et or ''}"
+            )
+            category_ru = canonical_category_ru(
+                product_type,
+                category_ru=category_ru,
+                category_et=category_et,
+                dish_name=f"{name_ru or ''} {name_et or ''}",
             )
 
             price_variant = item.get("price_variant")
