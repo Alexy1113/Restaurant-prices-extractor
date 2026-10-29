@@ -69,6 +69,7 @@ QUANTITY_RE = re.compile(
 FALLBACK_CATEGORY_URLS = [
     "https://monkrestoran.ee/ru/monk-johvi-2/d181d183d188d0b8/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b7d0b0d0bad183d181d0bad0b8/",
+    "https://monkrestoran.ee/ru/monk-johvi-2/d0b1d0bbd18ed0b4d0b0-d0bdd0b0-d181d0bad0bed0b2d0bed180d0bed0b4d0b5/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b1d0bbd18ed0b4d0b0-d0bdd0b0-d181d0bad0bed0b2d0bed180d0b5/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d185d0bbd0b5d0b1/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b2d0b5d181d0b5d0bdd0bdd0b8d0b5-d180d183d0bbd0b5d182d18b-d0b8-d0b2d180d0b0d0bfd18b/",
@@ -266,6 +267,10 @@ def get_product_type(category, name):
     if any(word in all_text for word in ("side", "garnish", "гарнир", "lisand")):
         return "sides"
 
+    if any(word in name_text for word in ("картофел", "potato", "fries", "friikartul", "kartul")):
+        return "sides"
+
+
     if any(word in all_text for word in ("burger", "tortilla")):
         return "burgers" if "burger" in all_text else "tortillas"
 
@@ -276,7 +281,7 @@ def get_product_type(category, name):
         "баранин", "lamb", "утк", "duck", "рыб", "fish", "seafood", "mereannid",
         "куриц", "chicken", "kana", "vegetarian", "taimetoid", "вегетариан",
         "сковород", "sizzler", "panniroad", "основн", "main course",
-        "паста", "lastemenüü", "детское меню", "рис", "riis"
+        "паста", "lastemenuu", "детское меню", "рис", "riis"
     )):
         return "main_courses"
 
