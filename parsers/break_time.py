@@ -56,7 +56,6 @@ CATEGORY_PATH_MARKERS = (
     "product_cat",
     "kategoriya-tovara",
     "kategoriya-produkta",
-    "product-category",
 )
 
 _SET_CATEGORY_MARKERS = (
@@ -82,7 +81,7 @@ _DRINK_NAME_MARKERS = (
     "coca-cola", "coca cola", "fanta", "sprite", "mirinda", "red bull",
     "fuzetea", "arizona", "neptunas", "mineral water", "mineraalvesi",
     "water", "vesi", "mahl", "juice", "limonaad", "lemonade", "coffee",
-    "kohv", "espresso", "cappuccino", "latte", "tee", "tea", "kohvijook",
+    "kohv", "espresso", "cappuccino", "latte", "tee", "kohvijook",
     "milkshake", "jäätisekokteil", "коктейл", "кофе", "чай", "вода",
     "сок", "лимонад", "пиво", "вино",
 )
@@ -472,6 +471,71 @@ def get_product_type(category, name):
     return "main_courses"
 
 
+def _discover_category_urls(soup, current_url, language):
+    """Find all product-category pages in the site's navigation."""
+    current_host = urlparse(current_url).netloc.casefold()
+    found = []
+    for link in soup.select("a[href]"):
+        href = clean_text(link.get("href", ""))
+        if not href or href == "#":
+            continue
+        url = urljoin(current_url, href)
+        parsed = urlparse(url)
+        if parsed.netloc.casefold() not in {current_host, "ida-toit.ee", "www.ida-toit.ee"}:
+            continue
+        if not _is_category_url(url):
+            continue
+
+        path = parsed.path.casefold()
+        is_ru_path = path == "/ru" or path.startswith("/ru/")
+        if language == "ru" and not is_ru_path:
+            continue
+        if language == "et" and is_ru_path:
+            continue
+
+        # Ignore any current-page parameters (sorting, cart, tracking).
+        url = urlunparse(parsed._replace(query="", fragment=""))
+        if url not in found:
+            found.append(url)
+    return found
+
+
+def _catalog_context(url):
+    """Get a comparable category key and zero-based page offset for RU/ET."""
+    parsed = urlparse(url)
+    segments = [part for part in parsed.path.strip("/").split("/") if part]
+    if segments and segments[0].casefold() == "ru":
+        segments = segments[1:]
+
+    category_key = "shop"
+    if "tootekategooria" in [part.casefold() for part in segments]:
+        index = [part.casefold() for part in segments].index("tootekategooria")
+        if index + 1 < len(segments):
+            category_key = segments[index + 1].casefold()
+    elif "product-category" in [part.casefold() for part in segments]:
+        index = [part.casefold() for part in segments].index("product-category")
+        if index + 1 < len(segments):
+            category_key = segments[index + 1].casefold()
+
+    page_number = 1
+    lowered_segments = [part.casefold() for part in segments]
+    if "page" in lowered_segments:
+        index = lowered_segments.index("page")
+        if index + 1 < len(segments) and segments[index + 1].isdigit():
+            page_number = max(1, int(segments[index + 1]))
+
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    for key in ("product-page", "paged", "page"):
+        try:
+            if key in query:
+                page_number = max(1, int(query[key]))
+                break
+        except (TypeError, ValueError):
+            pass
+
+    return category_key, (page_number - 1) * 12
+
+
 def _pagination_urls(soup, current_url, language):
     """Return product-catalog pagination links only, not category/product links."""
     containers = soup.select(
@@ -527,7 +591,6 @@ def parse_language(session, language):
     visited_urls = set()
     seen_products = set()
     records = []
-    catalog_position = 0
 
     while queue and len(visited_urls) < MAX_CATALOG_PAGES:
         url = queue.pop(0)
@@ -545,8 +608,16 @@ def parse_language(session, language):
         soup = BeautifulSoup(response.text, "html.parser")
         cards = get_cards(soup)
         page_record_count = 0
+        category_key, page_offset = _catalog_context(response.url)
 
-        for card in cards:
+        # The homepage contains featured products, while the full menu is
+        # distributed over WooCommerce category pages. Discover those links
+        # from the live navigation instead of assuming the homepage is the shop.
+        for category_url in _discover_category_urls(soup, response.url, language):
+            if category_url not in visited_urls and category_url not in queue:
+                queue.append(category_url)
+
+        for card_index, card in enumerate(cards):
             name = get_name(card)
             if not name:
                 continue
@@ -560,8 +631,7 @@ def parse_language(session, language):
             product_type = get_product_type(category, name)
             source_id = get_card_identifier(card)
             variant = None
-            this_position = catalog_position
-            catalog_position += 1
+            this_position = page_offset + card_index
 
             # Deduplicate repeated cards without conflating distinct WooCommerce IDs.
             if source_id:
@@ -594,6 +664,7 @@ def parse_language(session, language):
                 "category": category or None,
                 "product_type": product_type,
                 "language": language,
+                "catalog_category_key": category_key,
                 "catalog_position": this_position,
             })
             page_record_count += 1
@@ -685,23 +756,23 @@ def _find_translation(record, candidates):
     if len(same_price) == 1:
         return same_price[0]
 
-    # Translated product names may be completely different. As a cautious
-    # fallback, match only the exact catalog position when the canonical type
-    # and current price also agree; never match by price alone.
+    # Translated product names may be completely different and prices in the
+    # language copies can temporarily differ. Match only when the item occupies
+    # the same position in the same permalink category and has the same shared
+    # product type and serving-size variant.
     position = record.get("catalog_position")
-    price = record.get("price")
-    if position is not None and price is not None:
+    category_key = record.get("catalog_category_key")
+    if position is not None and category_key and category_key != "shop":
         positional_matches = [
             item for item in candidates
             if item.get("catalog_position") == position
+            and item.get("catalog_category_key") == category_key
             and item.get("product_type") == record.get("product_type")
             and _record_variant_key(item) == variant
-            and item.get("price") is not None
-            and abs(float(item["price"]) - float(price)) < 0.001
         ]
         if len(positional_matches) == 1:
             print(
-                "[Break Time] Переводы сопоставлены по позиции, категории и цене: "
+                "[Break Time] Переводы сопоставлены по категории и позиции: "
                 f"{record.get('name')!r} / {positional_matches[0].get('name')!r}"
             )
             return positional_matches[0]
