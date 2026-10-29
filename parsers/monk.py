@@ -248,7 +248,10 @@ def get_product_type(category, name):
     if any(word in all_text for word in ("десерт", "dessert", "magustoit", "jäätis", "морожен", "cake", "gulab jamun")):
         return "desserts"
 
-    if any(word in name_text for word in ("комбо", "combo", "набор", "сет", "set menu", "sushi set")):
+    if (
+        any(word in name_text for word in ("комбо", "combo", "набор", "сет", "set menu", "sushi set"))
+        or re.search(r"\bset\b", name_text)
+    ):
         return "sets"
 
     if any(word in name_text for word in ("dim sum", "dumpling", "пельмен", "дим сам")):
@@ -282,6 +285,9 @@ def get_product_type(category, name):
     if any(word in all_text for word in ("суп", "soup", "supid", "tom kha", "tom yam", "том ям", "том кха", "miso", "мисо")):
         return "soups"
 
+    if any(word in name_text for word in ("картофел", "potato", "fries", "friikartul", "kartul")):
+        return "sides"
+
     if any(word in all_text for word in ("салат", "salad", "salatid", "salati")):
         return "salads"
 
@@ -305,9 +311,6 @@ def get_product_type(category, name):
         return "sides"
 
     if any(word in all_text for word in ("side", "garnish", "гарнир", "lisand")):
-        return "sides"
-
-    if any(word in name_text for word in ("картофел", "potato", "fries", "friikartul", "kartul")):
         return "sides"
 
 
