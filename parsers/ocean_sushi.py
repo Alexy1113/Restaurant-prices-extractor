@@ -5,9 +5,9 @@ import requests
 from bs4 import BeautifulSoup
 
 try:
-    from parsers.categories import canonical_category_ru
+    from parsers.categories import canonical_category_ru, canonical_category_et
 except ModuleNotFoundError:  # Support running this parser as a standalone script.
-    from categories import canonical_category_ru
+    from categories import canonical_category_ru, canonical_category_et
 
 
 MENU_URLS = {
@@ -245,19 +245,6 @@ def get_product_type(category, name):
     # Позже можно будет расширить список ключевых слов.
     # --------------------------------------------------
     return "other"
-
-
-def normalize_baked_category_et(category, product_type):
-    """Use Ocean Sushi's existing Estonian roll category for baked rolls."""
-    category_text = str(category or "").casefold()
-    is_baked_section = any(
-        marker in category_text
-        for marker in ("запеч", "baked", "küpset")
-    )
-    if product_type == "sushi_rolls" and is_baked_section:
-        # Ordinary Ocean Sushi rolls are listed under "Maki" in Estonian.
-        return "Maki"
-    return category
 
 
 def get_price(card):
@@ -676,14 +663,18 @@ def parse_menu():
                 f"{category_ru or ''} {category_et or ''}",
                 f"{name_ru or ''} {name_et or ''}"
             )
-            # Keep the original Estonian category consistent with the normal
-            # roll section: baked rolls should be "Maki", not "Küpsetatud".
-            category_et = normalize_baked_category_et(category_et, product_type)
+            dish_text = f"{name_ru or ''} {name_et or ''}"
             category_ru = canonical_category_ru(
                 product_type,
                 category_ru=category_ru,
                 category_et=category_et,
-                dish_name=f"{name_ru or ''} {name_et or ''}",
+                dish_name=dish_text,
+            )
+            category_et = canonical_category_et(
+                product_type,
+                category_ru=category_ru,
+                category_et=category_et,
+                dish_name=dish_text,
             )
 
             price_variant = item.get("price_variant")
