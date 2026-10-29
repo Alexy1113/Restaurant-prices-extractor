@@ -81,6 +81,15 @@ def get_product_type(category, name):
     if has_any(["siirup", "syrup", "siroop", "сироп"]):
         return "syrups"
 
+    # Ocean Sushi's baked-section items named "Hot ..." are hot rolls.
+    # Normalize them to the shared rolls type instead of keeping "Запечённые".
+    is_baked_section = any(
+        marker in category_text
+        for marker in ("запечён", "запечен", "baked", "küpset")
+    )
+    if is_baked_section and re.search(r"(?<!\\w)hot(?!\\w)", name_text):
+        return "sushi_rolls"
+
     # --------------------------------------------------
     # 1. НАПИТКИ
     # Проверяем первыми, потому что напитки могут иметь
