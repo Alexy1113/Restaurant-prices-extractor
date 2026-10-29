@@ -1,7 +1,7 @@
-"""Shared Russian category labels used by all restaurant parsers.
+"""Shared canonical category labels in Russian and Estonian.
 
-The original website section remains available in category_et. category_ru is the
-stable, cross-restaurant category displayed and filtered in the application.
+Both category_ru and category_et use this app taxonomy, not the site's raw
+section headings, so different source-language sections stay grouped together.
 """
 import re
 
@@ -52,7 +52,7 @@ _ROLL_RE = re.compile(
 # Shared Estonian labels corresponding to the canonical Russian categories.
 # category_et stores this app taxonomy, not the menu's original section heading.
 CATEGORY_ET_BY_PRODUCT_TYPE = {
-    "main_courses": "Pearoad",
+    "main_courses": "Põhiroad",
     "bowls": "Bowls",
     "burgers": "Burgerid",
     "tortillas": "Tortillad",
@@ -76,11 +76,10 @@ CATEGORY_ET_BY_PRODUCT_TYPE = {
     "syrups": "Siirupid",
     "ice_cream_shakes": "Joogid",
     "campaigns": "Kampaaniad",
-    "other": "Muu",
 }
 
 CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
-    "основные блюда": "Pearoad",
+    "основные блюда": "Põhiroad",
     "боулы": "Bowls",
     "бургеры": "Burgerid",
     "тортильи": "Tortillad",
@@ -184,17 +183,20 @@ def canonical_category_et(
     if mapped:
         return mapped
 
-    # If the Russian category is already canonical, translate that exact label.
-    mapped_from_ru = CATEGORY_ET_BY_RUSSIAN_CATEGORY.get(
-        russian_category.casefold()
-    )
-    if mapped_from_ru:
+    # Translate a specific Russian canonical category when product_type is unknown.
+    russian_key = russian_category.casefold()
+    mapped_from_ru = CATEGORY_ET_BY_RUSSIAN_CATEGORY.get(russian_key)
+    generic_ru_categories = {"", "другое", "other", "без категории"}
+    if mapped_from_ru and russian_key not in generic_ru_categories:
         return mapped_from_ru
 
-    # Unknown source categories are retained rather than guessed or discarded.
+    # If classification is unknown, preserve an informative source category
+    # rather than guessing. Known category types are normalized above.
     if estonian_category and estonian_category.casefold() not in {
-        "muu", "other", "без категории", "без категории ", "другое"
+        "muu", "other", "без категории", "другое"
     }:
         return estonian_category
 
+    if mapped_from_ru:
+        return mapped_from_ru
     return "Muu"
