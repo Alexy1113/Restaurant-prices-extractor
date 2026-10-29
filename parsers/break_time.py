@@ -549,6 +549,19 @@ def _pagination_urls(soup, current_url, language):
     if not links:
         links = soup.select("a.page-numbers[href], a[rel='next'][href]")
 
+    # Some theme versions render the pager as plain anchors without WordPress
+    # pagination classes, so also find explicit /page/N and product-page links.
+    if not links:
+        for link in soup.select("a[href]"):
+            href = clean_text(link.get("href", ""))
+            parsed_link = urlparse(urljoin(current_url, href))
+            if re.search(r"/page/\d+/?$", parsed_link.path, re.IGNORECASE):
+                links.append(link)
+                continue
+            query_keys = {key.casefold() for key, _ in parse_qsl(parsed_link.query)}
+            if query_keys.intersection({"product-page", "paged", "page"}):
+                links.append(link)
+
     current_host = urlparse(current_url).netloc.casefold()
     result = []
     for link in links:
