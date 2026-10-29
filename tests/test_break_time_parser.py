@@ -1,5 +1,7 @@
 """Regression tests for the Break Time Burger & Wrap parser."""
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from bs4 import BeautifulSoup
 
@@ -12,6 +14,8 @@ from parsers.break_time import (
     _catalog_context,
     _discover_category_urls,
     _known_category_urls,
+    _url_matches_language,
+    parse_menu,
 )
 from parsers.categories import canonical_category_et, canonical_category_ru
 
@@ -124,6 +128,20 @@ class BreakTimeCategoryTests(unittest.TestCase):
 
 
 class BreakTimeCatalogDiscoveryTests(unittest.TestCase):
+    def test_language_guard_rejects_redirects_to_the_other_locale(self):
+        self.assertTrue(
+            _url_matches_language("https://ida-toit.ee/ru/tootekategooria/burgerid/", "ru")
+        )
+        self.assertFalse(
+            _url_matches_language("https://ida-toit.ee/ru/tootekategooria/burgerid/", "et")
+        )
+        self.assertTrue(
+            _url_matches_language("https://ida-toit.ee/tootekategooria/burgerid/", "et")
+        )
+        self.assertFalse(
+            _url_matches_language("https://ida-toit.ee/tootekategooria/burgerid/", "ru")
+        )
+
     def test_discovers_only_category_pages_for_requested_language(self):
         soup = BeautifulSoup(
             """
@@ -164,6 +182,29 @@ class BreakTimeCatalogDiscoveryTests(unittest.TestCase):
             url.startswith("https://ida-toit.ee/ru/tootekategooria/")
             for url in russian
         ))
+
+
+class BreakTimeSessionTests(unittest.TestCase):
+    def test_parse_menu_uses_separate_http_sessions_for_each_language(self):
+        sessions = []
+        parsed_sessions = []
+
+        def make_session():
+            session = SimpleNamespace(headers={})
+            sessions.append(session)
+            return session
+
+        def fake_parse_language(session, language):
+            parsed_sessions.append((session, language))
+            return []
+
+        with patch("parsers.break_time.requests.Session", side_effect=make_session):
+            with patch("parsers.break_time.parse_language", side_effect=fake_parse_language):
+                parse_menu()
+
+        self.assertEqual(len(sessions), 2)
+        self.assertEqual([language for _, language in parsed_sessions], ["ru", "et"])
+        self.assertIsNot(parsed_sessions[0][0], parsed_sessions[1][0])
 
 
 class BreakTimeCategorySlugTests(unittest.TestCase):
