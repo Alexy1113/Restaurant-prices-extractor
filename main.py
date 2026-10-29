@@ -41,28 +41,6 @@ def normalize_category(value):
     return value
 
 
-def record_price_history(restaurant_name, dish_code, dish_name, price, dish_id=None):
-    """Сохраняет точку истории при первом добавлении или изменении цены."""
-    history_record = {
-        "dish_id": str(dish_id) if dish_id is not None else None,
-        "restaurant_name": restaurant_name,
-        "dish_code": str(dish_code) if dish_code is not None else None,
-        "dish_name": dish_name,
-        "price": round(float(price), 2),
-        "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    }
-
-    try:
-        supabase.table("price_history").insert(history_record).execute()
-    except Exception as e:
-        # Не отменяем успешное обновление основной таблицы из-за проблемы истории.
-        print(
-            "[История][Внимание] Не удалось записать цену для "
-            f"{restaurant_name} / {dish_name}: {e}. "
-            "Проверь, что таблица public.price_history создана в Supabase."
-        )
-
-
 def save_dishes_to_db(restaurant_name, scraped_dishes):
     """Сохраняет блюда одного ресторана в таблицу dishes Supabase."""
     print(f"\n[Main] Обработка ресторана: {restaurant_name}")
@@ -117,6 +95,9 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
                 "dish_code": str(dish_code) if dish_code is not None else None,
                 "product_type": product_type,
             }
+            price_variant = dish.get("price_variant")
+            if price_variant is not None:
+                dish_data["price_variant"] = price_variant
             if name_ru is not None:
                 dish_data["dish_name_ru"] = name_ru
             if name_et is not None:
@@ -132,29 +113,7 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
                     "price_delta": 0.00,
                     "last_updated": now,
                 })
-                insert_response = supabase.table("dishes").insert(dish_data).execute()
-                inserted_rows = getattr(insert_response, "data", None) or []
-                inserted_id = inserted_rows[0].get("id") if inserted_rows else None
-
-                # Обычно Supabase возвращает id вставленной записи. Если нет,
-                # запрашиваем его по ресторану и коду/названию блюда.
-                if inserted_id is None:
-                    id_query = (
-                        supabase.table("dishes")
-                        .select("id")
-                        .eq("restaurant_name", restaurant_name)
-                    )
-                    if dish_code is not None:
-                        id_query = id_query.eq("dish_code", str(dish_code))
-                    else:
-                        id_query = id_query.eq("dish_name", name)
-                    id_rows = id_query.limit(1).execute().data or []
-                    if id_rows:
-                        inserted_id = id_rows[0].get("id")
-
-                record_price_history(
-                    restaurant_name, dish_code, name, new_price, inserted_id
-                )
+                supabase.table("dishes").insert(dish_data).execute()
                 added += 1
             else:
                 db_dish = existing.data[0]
@@ -180,17 +139,6 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
                 supabase.table("dishes").update(dish_data).eq(
                     "id", db_dish["id"]
                 ).execute()
-
-                # Храним историю только при фактическом изменении цены,
-                # а не при каждом плановом запуске парсера.
-                if new_price != current_db_price:
-                    record_price_history(
-                        restaurant_name,
-                        dish_code,
-                        name,
-                        new_price,
-                        db_dish.get("id"),
-                    )
 
         except Exception as e:
             errors += 1
