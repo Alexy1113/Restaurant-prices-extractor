@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 
 MENU_BASE_URL = "https://monkrestoran.ee/ru/monk-johvi-2/"
 BASE_PATH = "/ru/monk-johvi-2/"
+LEGACY_MENU_URL = "https://monkrestoran.ee/johvi-rus/"
 
 HEADERS = {
     "User-Agent": (
@@ -85,6 +86,7 @@ FALLBACK_CATEGORY_URLS = [
     "https://monkrestoran.ee/ru/monk-johvi-2/d0bfd0b0d181d182d0b0-d0b8-d0b8d180d0b8d0b0d0bdd0b8/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b4d0b5d181d0b5d180d182d18b/",
     "https://monkrestoran.ee/ru/monk-johvi-2/d0b4d0b5d182d181d0bad0bed0b5-d0bcd0b5d0bdd18e/",
+    "https://monkrestoran.ee/ru/monk-johvi-2/d0bad183d180d0b8d0bdd18bd0b5-d0b1d0bbd18ed0b4d0b0/",
 ]
 
 
@@ -435,40 +437,44 @@ def get_category_from_page(soup, fallback):
 def get_category_pages(session):
     pages = {}
 
-    try:
-        response = session.get(MENU_BASE_URL, timeout=20)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
+    # Try both the category landing page and Monk's legacy all-in-one menu.
+    # The latter often contains the navigation links even when the landing
+    # page URL has changed.
+    for discovery_url in (MENU_BASE_URL, LEGACY_MENU_URL):
+        try:
+            response = session.get(discovery_url, timeout=20)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
 
-        for link in soup.select("a[href]"):
-            url = urljoin(MENU_BASE_URL, link.get("href", ""))
-            parsed = urlparse(url)
-            if parsed.netloc.casefold() not in {"monkrestoran.ee", "www.monkrestoran.ee"}:
-                continue
+            for link in soup.select("a[href]"):
+                url = urljoin(discovery_url, link.get("href", ""))
+                parsed = urlparse(url)
+                if parsed.netloc.casefold() not in {"monkrestoran.ee", "www.monkrestoran.ee"}:
+                    continue
 
-            path = parsed.path
-            if not path.startswith(BASE_PATH):
-                continue
+                path = parsed.path
+                if not path.startswith(BASE_PATH):
+                    continue
 
-            remainder = path[len(BASE_PATH):].strip("/")
-            # A category page has exactly one path segment after the restaurant slug.
-            if not remainder or "/" in remainder:
-                continue
+                remainder = path[len(BASE_PATH):].strip("/")
+                # A category page has exactly one path segment after the restaurant slug.
+                if not remainder or "/" in remainder:
+                    continue
 
-            label = clean_text(link.get_text(" ", strip=True))
-            if not label:
-                image = link.find("img")
-                label = clean_text(link.get("title") or (image.get("alt", "") if image else ""))
+                label = clean_text(link.get_text(" ", strip=True))
+                if not label:
+                    image = link.find("img")
+                    label = clean_text(link.get("title") or (image.get("alt", "") if image else ""))
 
-            pages.setdefault(path.rstrip("/") + "/", {
-                "url": url.split("#", 1)[0].split("?", 1)[0],
-                "label": label,
-            })
+                pages.setdefault(path.rstrip("/") + "/", {
+                    "url": url.split("#", 1)[0].split("?", 1)[0],
+                    "label": label,
+                })
 
-        print(f"[Monk] Найдено категорий в навигации сайта: {len(pages)}")
+        except requests.RequestException as error:
+            print(f"[Monk] Не удалось прочитать навигацию {discovery_url}: {error}")
 
-    except requests.RequestException as error:
-        print(f"[Monk] Не удалось прочитать список категорий: {error}")
+    print(f"[Monk] Найдено категорий в навигации сайта: {len(pages)}")
 
     # Add known URLs as a fallback and ensure all categories listed on the site
     # are processed even if the navigation is rendered by JavaScript.
@@ -477,7 +483,6 @@ def get_category_pages(session):
         pages.setdefault(path, {"url": url, "label": ""})
 
     return list(pages.values())
-
 
 def get_stable_base_code(name):
     key = normalize_key(name)
