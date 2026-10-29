@@ -439,6 +439,15 @@ def get_product_type(category, name):
     if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
 
+    # Explicit menu sections such as Hot dog, Shawarma and Kebab take priority
+    # over incidental words like "lavas" in the dish title.
+    if has_any(category_text, (
+        "hot dog", "hotdog", "хот-дог", "хот дог",
+        "shawarma", "шаверм", "шаурм", "kebab", "kebabi",
+        "doner", "döner",
+    )):
+        return "main_courses"
+
     # A dedicated Lavash category is more specific than ingredients in its title.
     if has_any(category_text, ("lavash", "lavas", "lavass", "лаваш")):
         return "tortillas"
