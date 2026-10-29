@@ -108,6 +108,33 @@ CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
 }
 
 
+def _is_drink_like(source_text, product_type=None):
+    """Return True for hot drinks, cocktails, shakes and alcoholic beverages."""
+    text = " ".join(str(source_text or "").split()).casefold()
+    product_type = str(product_type or "").casefold()
+
+    drink_markers = (
+        "drink", "drinks", "beverage", "beverages",
+        "joog", "joogid", "jook", "kohv", "coffee", "espresso", "cappuccino",
+        "latte", "tee", "tea", "limonaad", "lemonade", "kokteil", "cocktail",
+        "milkshake", "shake", "soda", "cola", "fanta", "sprite",
+        "alkohol", "alcohol", "beer", "bier", "wine", "vin", "õlu", "vein",
+        "vahuvein", "siider", "cider", "whisky", "whiskey", "vodka", "rum",
+        "gin", "prosecco", "hot drink", "hot drinks",
+        "горячий напиток", "горячие напитки", "напиток", "напитки",
+        "коктейл", "алкоголь", "пиво", "вино", "чай", "кофе", "сок",
+        "молочный коктейль", "jäätisekokteil", "milk shake",
+    )
+
+    if product_type in {
+        "drinks", "ice_cream_shakes", "hot_drinks", "hotdrinks",
+        "cocktails", "cocktail", "alcoholic_drinks", "alcoholicdrinks",
+    }:
+        return True
+
+    return any(marker in text for marker in drink_markers)
+
+
 def canonical_category_ru(
     product_type,
     category_ru=None,
@@ -121,6 +148,12 @@ def canonical_category_ru(
     dish_name = " ".join(str(dish_name or "").split()).strip()
     source_categories = f"{russian_category} {estonian_category}"
     source_text = f"{source_categories} {dish_name}"
+
+    # All beverage-like rows are normalized into a single shared category.
+    if _is_drink_like(source_text, product_type):
+        if _ALCOHOL_RE.search(source_categories):
+            return "Алкогольные напитки (18+)"
+        return "Напитки"
 
     # Preserve the 18+ distinction while merging wine/champagne/low-alcohol
     # subcategories into one clear label.
@@ -151,7 +184,6 @@ def canonical_category_ru(
     )
 
 
-
 def canonical_category_et(
     product_type,
     category_ru=None,
@@ -165,6 +197,12 @@ def canonical_category_et(
     dish_name = " ".join(str(dish_name or "").split()).strip()
     source_categories = f"{russian_category} {estonian_category}"
     source_text = f"{source_categories} {dish_name}"
+
+    # All beverage-like rows are normalized into a single shared category.
+    if _is_drink_like(source_text, product_type):
+        if _ALCOHOL_RE.search(source_categories):
+            return "Alkohoolsed joogid (18+)"
+        return "Joogid"
 
     # Merge wine, champagne, beer and other alcoholic subcategories into one
     # Estonian label, matching the Russian "Алкогольные напитки (18+)" group.
