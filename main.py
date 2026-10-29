@@ -14,6 +14,7 @@ from supabase import create_client, Client
 from parsers.ocean_sushi import parse_menu as parse_ocean
 from parsers.hesburger import parse_menu as parse_hesburger
 from parsers.monk import parse_menu as parse_monk
+from parsers.break_time import parse_menu as parse_break_time
 from parsers.categories import (
     canonical_category_ru,
     canonical_category_et,
@@ -308,9 +309,9 @@ def main():
     )
     parser.add_argument(
         "--restaurant",
-        choices=("all", "ocean", "hesburger", "monk"),
+        choices=("all", "ocean", "hesburger", "monk", "break-time"),
         default="all",
-        help="Какой ресторан обрабатывать: all (по умолчанию), ocean, hesburger или monk.",
+        help="Какой ресторан обрабатывать: all (по умолчанию), ocean, hesburger, monk или break-time.",
     )
     args = parser.parse_args()
 
@@ -318,6 +319,7 @@ def main():
         "ocean": (parse_ocean, "Ocean Sushi Jõhvi"),
         "hesburger": (parse_hesburger, "Hesburger"),
         "monk": (parse_monk, "Monk Jõhvi"),
+        "break-time": (parse_break_time, "Break Time Burger & Wrap"),
     }
     selected_parsers = (
         list(restaurant_parsers.items())
