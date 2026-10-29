@@ -8,6 +8,8 @@ from parsers.break_time import (
     get_price,
     get_product_type,
     merge_language_records,
+    _catalog_context,
+    _discover_category_urls,
 )
 from parsers.categories import canonical_category_et, canonical_category_ru
 
@@ -74,6 +76,34 @@ class BreakTimeCategoryTests(unittest.TestCase):
         self.assertEqual(get_product_type("Alkohoolsed joogid", "Gin 0,5 l"), "drinks")
         self.assertEqual(get_product_type("Kastmed", "Küüslaugukaste"), "sauces")
         self.assertEqual(get_product_type("Suupisted", "Kartul friikartulid + kaste"), "appetizers")
+
+
+class BreakTimeCatalogDiscoveryTests(unittest.TestCase):
+    def test_discovers_only_category_pages_for_requested_language(self):
+        soup = BeautifulSoup(
+            """
+            <nav>
+              <a href="/ru/tootekategooria/burgerid/">Бургеры</a>
+              <a href="/tootekategooria/eine/">Eine</a>
+              <a href="/ru/toode/burger/">Product</a>
+            </nav>
+            """,
+            "html.parser",
+        )
+        russian = _discover_category_urls(soup, "https://ida-toit.ee/ru/", "ru")
+        estonian = _discover_category_urls(soup, "https://ida-toit.ee/", "et")
+        self.assertEqual(russian, ["https://ida-toit.ee/ru/tootekategooria/burgerid/"])
+        self.assertEqual(estonian, ["https://ida-toit.ee/tootekategooria/eine/"])
+
+    def test_catalog_context_matches_same_category_page_across_languages(self):
+        ru = _catalog_context(
+            "https://ida-toit.ee/ru/tootekategooria/burgerid/page/2/"
+        )
+        et = _catalog_context(
+            "https://ida-toit.ee/tootekategooria/burgerid/page/2/"
+        )
+        self.assertEqual(ru, ("burgerid", 12))
+        self.assertEqual(et, ru)
 
 
 class BreakTimeHtmlTests(unittest.TestCase):
