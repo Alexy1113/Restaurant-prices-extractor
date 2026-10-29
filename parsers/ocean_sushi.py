@@ -341,7 +341,7 @@ def get_product_description(card):
 
 
 def make_combo_variant(dish_code, description):
-    """Builds a short, distinct Ocean Combo label from its product composition."""
+    """Builds a concise but complete Ocean Combo label, preserving every quantity."""
     code = str(dish_code or "").strip()
     items = []
 
@@ -355,66 +355,14 @@ def make_combo_variant(dish_code, description):
             quantity = int(match.group(1))
             name = clean_text(match.group(2)).strip(" .;,")
         else:
+            # Keep items even if the site omits an explicit quantity.
             quantity = 1
             name = part
 
         if name:
-            items.append((quantity, name))
+            items.append(f"{quantity}× {name}")
 
-    named_products = []
-    grouped_counts = {}
-    group_order = ["gunkan", "nigiri", "hosomaki", "inari"]
-    baked_gunkan_count = 0
-
-    for quantity, name in items:
-        normalized = name.casefold()
-
-        if "miso" in normalized and any(
-            token in normalized for token in ("supp", "soup", "суп")
-        ):
-            grouped_counts["miso"] = grouped_counts.get("miso", 0) + quantity
-        elif "gunkan" in normalized or "гункан" in normalized:
-            is_baked = any(
-                token in normalized
-                for token in ("küpsetatud", "запеч", "baked", "cooked")
-            )
-            if is_baked:
-                baked_gunkan_count += quantity
-            else:
-                grouped_counts["gunkan"] = grouped_counts.get("gunkan", 0) + quantity
-        elif "nigiri" in normalized or "нигири" in normalized:
-            grouped_counts["nigiri"] = grouped_counts.get("nigiri", 0) + quantity
-        elif "hosomaki" in normalized or "хосомаки" in normalized:
-            grouped_counts["hosomaki"] = grouped_counts.get("hosomaki", 0) + quantity
-        elif "inari" in normalized or "инари" in normalized:
-            grouped_counts["inari"] = grouped_counts.get("inari", 0) + quantity
-        else:
-            # Keep roll names themselves; remove only the generic "maki" suffix.
-            short_name = re.sub(
-                r"\s+(?:maki|маки)$", "", name, flags=re.IGNORECASE
-            ).strip()
-            if short_name and short_name.casefold() not in {
-                item.casefold() for item in named_products
-            }:
-                named_products.append(short_name)
-
-    label_parts = []
-    if len(named_products) <= 2:
-        label_parts.extend(named_products)
-    else:
-        label_parts.extend(named_products[:2])
-        label_parts.append(f"{len(named_products) - 2} more varieties")
-
-    if baked_gunkan_count:
-        label_parts.append(f"{baked_gunkan_count} baked gunkan")
-    for kind in group_order:
-        count = grouped_counts.get(kind, 0)
-        if count:
-            label_parts.append(f"{count} {kind}")
-    if grouped_counts.get("miso"):
-        label_parts.append("miso")
-
-    summary = " + ".join(label_parts)
+    summary = " / ".join(items)
     if code and summary:
         return f"№{code} · {summary}"
     if code:
