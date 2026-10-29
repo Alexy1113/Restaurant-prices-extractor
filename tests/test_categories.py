@@ -2,6 +2,7 @@
 import unittest
 
 from parsers.categories import canonical_category_ru
+from parsers.monk import get_product_type as get_monk_product_type
 from parsers.ocean_sushi import get_product_type
 
 
@@ -62,6 +63,26 @@ class CategoryNormalizationTests(unittest.TestCase):
                     canonical_category_ru(
                         product_type,
                         category_ru="Запечённые",
+                        dish_name=name,
+                    ),
+                    "Роллы",
+                )
+
+    def test_monk_baked_sushi_section_is_grouped_as_rolls(self):
+        cases = (
+            ("Запечённые", "Hot Salmon"),
+            ("Запеченные", "Hot Tuna"),
+            ("Baked", "Hot Unagi"),
+            ("Küpsetatud", "Hot Krevett"),
+        )
+        for category, name in cases:
+            with self.subTest(category=category, name=name):
+                product_type = get_monk_product_type(category, name)
+                self.assertEqual(product_type, "sushi_rolls")
+                self.assertEqual(
+                    canonical_category_ru(
+                        product_type,
+                        category_ru=category,
                         dish_name=name,
                     ),
                     "Роллы",
