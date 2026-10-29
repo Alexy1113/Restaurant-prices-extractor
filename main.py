@@ -193,10 +193,13 @@ def save_dishes_to_db(restaurant_name, scraped_dishes):
             dish_data = {
                 "restaurant_name": restaurant_name,
                 "dish_name": name,
-                "category_et": category_et,
                 "dish_code": str(dish_code) if dish_code is not None else None,
                 "product_type": product_type,
             }
+            # An unavailable translation should not erase a previously saved
+            # localized category (for example if the Estonian site is temporarily down).
+            if category_et is not None:
+                dish_data["category_et"] = category_et
             price_variant = dish.get("price_variant")
             if price_variant is not None:
                 dish_data["price_variant"] = price_variant
