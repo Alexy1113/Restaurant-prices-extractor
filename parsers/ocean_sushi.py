@@ -87,7 +87,7 @@ def get_product_type(category, name):
         marker in category_text
         for marker in ("запечён", "запечен", "baked", "küpset")
     )
-    if is_baked_section and re.search(r"(?<!\\w)hot(?!\\w)", name_text):
+    if is_baked_section and re.search(r"(?<!\w)hot(?!\w)", name_text):
         return "sushi_rolls"
 
     # --------------------------------------------------
