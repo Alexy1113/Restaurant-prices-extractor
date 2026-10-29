@@ -147,6 +147,25 @@ _SIDE_MARKERS = (
 _APPETIZER_CATEGORY_MARKERS = (
     "suupist", "eelroad", "закуск", "appetizer", "starter", "snack",
 )
+_APPETIZER_NAME_MARKERS = (
+    "chicken strips", "kanaribad", "strips", "стрипс", "nugget", "nagits",
+    "наггет", "cheese ball", "juustupall", "сырные шарик", "сырные палоч",
+    "mozzarella stick", "mozzarella juustu", "onion ring", "sibularõng",
+    "луков кольц", "squid ring", "kalmarirõng", "кальмар", "spring roll",
+    "kevadrull", "спринг-ролл", "chicken wing", "kanatiib",
+    "куриные крылыш", "куриные шарик", "õlletaldrik", "пивная тарелка",
+    "lihataldrik", "мясная тарелка", "vegetable roll",
+    "köögiviljarull", "овощные рулет",
+)
+_MAIN_NAME_MARKERS = (
+    "steak", "steik", "лосос", "salmon", "lõhe", "šaslõkk", "шашлык",
+    "grillitud", "grilled", "praad", "kreeka pita", "krevetid kastmega",
+)
+_SAUCE_ONLY_NAME_RE = re.compile(
+    r"^(?:(?:extra|lisakaste|дополнительный)\\s+)?"
+    r"(?:sauce|kastmed?|kaste|соус(?:ы)?)(?:\\b|$)",
+    re.IGNORECASE,
+)
 _SAUCE_MARKERS = ("kastmed", "sauce", "соус", "соусы")
 _SALAD_MARKERS = ("salat", "салат")
 _SOUP_MARKERS = ("soup", "supi", "суп")
@@ -520,6 +539,17 @@ def get_product_type(category, name):
     # actual meal even when its name does not contain the word "burger".
     if "eine" in category_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
+    # Some menu bundles are named by their contents instead of "Menu/Eine".
+    # Require a main item plus a side/drink or a second substantial item.
+    if "+" in name_text and has_any(name_text, (
+        "shawarma", "шаверм", "шаурм", "burger", "бургер", "döner",
+        "doner", "kebab", "hot dog", "hotdog", "хот-дог",
+    )) and has_any(name_text, (
+        *_SIDE_MARKERS, *_DRINK_NAME_MARKERS, "mozzarella", "juust",
+        "cheese", "сыр", "nugget", "nagits",
+    )):
+        return "sets"
+
     if has_any(name_text, _SET_NAME_MARKERS):
         return "sets"
     if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
@@ -561,11 +591,35 @@ def get_product_type(category, name):
         # label should be retained unless the item clearly belongs elsewhere.
         return "noodles"
 
-    if has_any(category_text, _SAUCE_MARKERS) or has_any(name_text, _SAUCE_MARKERS):
-        return "sauces"
-
     if has_any(category_text, _BREAKFAST_MARKERS):
         return "breakfast"
+
+    # Product identity outranks secondary WooCommerce tags such as "Sauces".
+    # A sauce after "+" is an accompaniment, not the category of the whole dish.
+    if (
+        has_any(category_text, _APPETIZER_CATEGORY_MARKERS)
+        or has_any(name_text, _APPETIZER_NAME_MARKERS)
+    ):
+        return "appetizers"
+
+    if has_any(name_text, _SIDE_MARKERS):
+        protein_markers = (
+            "chicken", "kana", "куриц", "beef", "loomaliha", "говядин",
+            "fish", "kala", "рыб", "liha", "мяс", "salmon", "lõhe",
+            "steak", "steik", "шашлык", "šaslõkk",
+        )
+        if not has_any(name_text, protein_markers):
+            return "sides"
+
+    if has_any(name_text, _MAIN_NAME_MARKERS):
+        return "main_courses"
+
+    # Only a standalone sauce product belongs in the sauces category.
+    if _SAUCE_ONLY_NAME_RE.search(name_text) or (
+        has_any(category_text, _SAUCE_MARKERS)
+        and not has_any(name_text, (*_SIDE_MARKERS, *_APPETIZER_NAME_MARKERS, *_MAIN_NAME_MARKERS))
+    ):
+        return "sauces"
 
     if has_any(category_text, _APPETIZER_CATEGORY_MARKERS):
         return "appetizers"
