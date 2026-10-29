@@ -13,6 +13,7 @@ from supabase import create_client, Client
 # Импортируем парсеры двух ресторанов под разными именами.
 from parsers.ocean_sushi import parse_menu as parse_ocean
 from parsers.hesburger import parse_menu as parse_hesburger
+from parsers.monk import parse_menu as parse_monk
 
 # Загружаем переменные из .env в корне проекта.
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -273,7 +274,7 @@ def run_parser(parser_function, restaurant_name):
 
 
 def main():
-    """Последовательно обновляет меню Ocean Sushi и Hesburger."""
+    """Последовательно обновляет меню Ocean Sushi, Hesburger и Monk Jõhvi."""
     parser = argparse.ArgumentParser(description="Мониторинг цен ресторанов")
     parser.add_argument(
         "--dry-run",
@@ -288,6 +289,7 @@ def main():
         for parser_function, restaurant_name in (
             (parse_ocean, "Ocean Sushi Jõhvi"),
             (parse_hesburger, "Hesburger"),
+            (parse_monk, "Monk Jõhvi"),
         ):
             print(f"\n[Main] Запускаю парсер: {restaurant_name}")
             try:
@@ -298,6 +300,7 @@ def main():
     else:
         run_parser(parse_ocean, "Ocean Sushi Jõhvi")
         run_parser(parse_hesburger, "Hesburger")
+        run_parser(parse_monk, "Monk Jõhvi")
 
     print("\n=== МОНИТОРИНГ ЗАВЕРШЁН ===")
 
