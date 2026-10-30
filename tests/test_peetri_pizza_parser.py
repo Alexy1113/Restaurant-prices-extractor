@@ -1,7 +1,7 @@
 """Regression tests for the Peetri Pizza Jõhvi menu parser."""
 import unittest
 
-from parsers.peetri_pizza import parse_html, get_product_type
+from parsers.peetri_pizza import parse_html, get_product_type, parse_react_state
 
 
 MENU_FIXTURE = """
@@ -125,8 +125,122 @@ class PeetriPizzaParserTests(unittest.TestCase):
         self.assertEqual(dishes[0]["description_et"], "Juust, Kaste")
         self.assertEqual(
             [dish["dish_code"] for dish in dishes],
-            ["peetri-johvi:pizza:19", "peetri-johvi:pizza:81"],
+            ["peetri-johvi:pizza:19:small", "peetri-johvi:pizza:81:small"],
         )
+
+
+    def test_parses_all_three_pizza_sizes_with_distinct_codes(self):
+        import json
+
+        class FakeResponse:
+            def __init__(self, state):
+                self.text = (
+                    "<script>window.initialReactState = "
+                    + json.dumps(state)
+                    + ";</script>"
+                )
+
+            def raise_for_status(self):
+                return None
+
+        class FakeSession:
+            def get(self, url, timeout=None):
+                return FakeResponse({
+                    "availableSizes": {
+                        "small": 5.5,
+                        "large": 7.9,
+                        "family": 16.9,
+                    }
+                })
+
+        state = {
+            "productsData": {
+                "pizzas": [{
+                    "name": "Margherita",
+                    "templateId": 19,
+                    "minPrice": 5.5,
+                    "urlAddNew": "https://example.test/add/19",
+                }],
+                "simpleProducts": [],
+                "combos": [],
+            }
+        }
+        rows = parse_react_state(state, session=FakeSession())
+        self.assertEqual(
+            [(row["price_variant"], row["price"]) for row in rows],
+            [("small", 5.5), ("large", 7.9), ("family", 16.9)],
+        )
+        self.assertEqual(
+            [row["dish_code"] for row in rows],
+            [
+                "peetri-johvi:pizza:19:small",
+                "peetri-johvi:pizza:19:large",
+                "peetri-johvi:pizza:19:family",
+            ],
+        )
+
+    def test_parses_four_pasta_products_and_red_bull_combo(self):
+        state = {
+            "productsData": {
+                "pizzas": [],
+                "simpleProducts": [
+                    {
+                        "name": "Bolognese",
+                        "productId": 120,
+                        "unitPrice": 7.9,
+                        "categoryName": "Pastad",
+                        "description": "Pasta, hakkliha",
+                    },
+                    {
+                        "name": "Carbonara",
+                        "productId": 121,
+                        "unitPrice": 8.2,
+                        "categoryName": "Pastad",
+                    },
+                    {
+                        "name": "Chicken Pasta",
+                        "productId": 122,
+                        "unitPrice": 8.5,
+                        "categoryName": "Pastad",
+                    },
+                    {
+                        "name": "Vegetarian Pasta",
+                        "productId": 123,
+                        "unitPrice": 7.5,
+                        "categoryName": "Pastad",
+                    },
+                    {
+                        "name": "Pepsi",
+                        "productId": 301,
+                        "unitPrice": 2.5,
+                        "categoryName": "Joogid",
+                    },
+                ],
+                "combos": [{
+                    "id": 49,
+                    "name": "Red Bull Combo",
+                    "pizzas": [
+                        {"name": "Pepperoni", "size": "large"},
+                        {"name": "Pepperoni", "size": "large"},
+                    ],
+                    "products": [
+                        {"name": "Red Bull", "details": "0,25 l"},
+                        {"name": "Red Bull", "details": "0,25 l"},
+                    ],
+                    "price": {"discounted": 20, "original": 26.8},
+                }],
+            }
+        }
+        rows = parse_react_state(state)
+        pasta_rows = [row for row in rows if row["product_type"] == "pasta"]
+        combo_rows = [row for row in rows if row["product_type"] == "sets"]
+        self.assertEqual(len(pasta_rows), 4)
+        self.assertEqual(len(combo_rows), 1)
+        self.assertTrue(all(row["category_ru"] == "Паста" for row in pasta_rows))
+        self.assertTrue(all(row["category_et"] == "Pastad" for row in pasta_rows))
+        self.assertEqual(combo_rows[0]["price"], 20.0)
+        self.assertEqual(combo_rows[0]["description_et"], "2 × Pepperoni (large) + 2 × Red Bull (0,25 l)")
+        self.assertEqual(combo_rows[0]["dish_code"], "peetri-johvi:combo:49")
 
     def test_missing_pizza_section_returns_no_records(self):
         self.assertEqual(
