@@ -337,5 +337,16 @@ class CategoryNormalizationTests(unittest.TestCase):
         self.assertEqual(get_product_type("Drinks", "Gin Tonic"), "drinks")
 
 
+    def test_pizza_category_is_canonical_in_both_languages(self):
+        self.assertEqual(
+            canonical_category_ru("pizzas", category_ru="Pizzad", category_et="Pitsad"),
+            "Пицца",
+        )
+        self.assertEqual(
+            canonical_category_et("pizzas", category_ru="Пицца", category_et="Pizzad"),
+            "Pitsad",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
