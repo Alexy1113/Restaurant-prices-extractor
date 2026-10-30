@@ -355,9 +355,30 @@ def parse_menu():
             clean_text(soup.body.get_text(" ", strip=True))[:2500]
             if soup.body else ""
         )
+        script_sources = [
+            node.get("src")
+            for node in soup.find_all("script", src=True)
+        ]
+        root_nodes = [
+            {
+                "tag": node.name,
+                "id": node.get("id"),
+                "class": node.get("class"),
+            }
+            for node in (soup.body.find_all(recursive=False)[:20] if soup.body else [])
+        ]
+        html_lower = response.text.casefold()
+        marker_contexts = {}
+        for marker in ("pizzad", "pizza", "product", "graphql", "wp-json", "api", "react", "next"):
+            position = html_lower.find(marker)
+            if position >= 0:
+                marker_contexts[marker] = response.text[max(0, position - 180):position + 420]
         print(f"[Peetri Pizza/Jõhvi][Диагностика] Заголовок страницы: {page_title!r}")
         print(f"[Peetri Pizza/Jõhvi][Диагностика] Заголовки: {headings[:40]!r}")
         print(f"[Peetri Pizza/Jõhvi][Диагностика] Текст страницы: {body_text!r}")
+        print(f"[Peetri Pizza/Jõhvi][Диагностика] Script src: {script_sources[:50]!r}")
+        print(f"[Peetri Pizza/Jõhvi][Диагностика] Body roots: {root_nodes!r}")
+        print(f"[Peetri Pizza/Jõhvi][Диагностика] HTML marker contexts: {marker_contexts!r}")
         print(
             "[Peetri Pizza/Jõhvi] Не найдена секция Pizzad или в карточках "
             "не обнаружены названия и цены. Supabase не будет изменена."
