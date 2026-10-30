@@ -560,22 +560,22 @@ def get_product_type(category, name):
     if has_any(category_text, ("praad", "жаркое")):
         return "main_courses"
 
-    # Explicit menu sections such as Hot dog, Shawarma and Kebab take priority
-    # over incidental words like "lavas" in the dish title.
-    if has_any(category_text, (
-        "hot dog", "hotdog", "хот-дог", "хот дог",
-        "shawarma", "шаверм", "шаурм", "kebab", "kebabi",
-        "doner", "döner",
-    )):
-        return "main_courses"
+    # Unify wraps, tortillas, lavash, döner, kebab, shawarma and
+    # Brrrum-style products in the existing tortillas taxonomy.
+    # Check both source sections and product names, before generic burger/main rules.
+    wrap_markers = (
+        "lavash", "lavas", "lavass", "лаваш", "wrap", "врап",
+        "tortilla", "тортиль", "shawarma", "шаверм", "шаурм",
+        "doner", "döner", "дёнер", "денер", "kebab", "kebabi",
+        "кебаб", "brrrum", "brrm", "burrum", "burrito", "буррито",
+        "pita", "пита",
+    )
+    if has_any(category_text, wrap_markers) or has_any(name_text, wrap_markers):
+        return "tortillas"
 
-    # A dedicated Lavash category is more specific than ingredients in its title.
-    if has_any(category_text, ("lavash", "lavas", "lavass", "лаваш")):
-        return "tortillas"
-    if has_any(category_text, ("tortilla", "тортиль")):
-        return "tortillas"
-    if has_any(name_text, ("lavash", "lavas", "lavass", "лаваш", "wrap", "tortilla", "тортиль", "врап")):
-        return "tortillas"
+    # Hot dogs remain in main courses; they are not part of the wrap family.
+    if has_any(category_text, ("hot dog", "hotdog", "хот-дог", "хот дог")):
+        return "main_courses"
 
     # Product names/categories are more reliable than secondary labels on
     # several cards (e.g. a fish burger can also display a drinks tag).
@@ -591,10 +591,10 @@ def get_product_type(category, name):
     if has_any(category_text, _SOUP_MARKERS) or has_any(name_text, _SOUP_MARKERS):
         return "soups"
 
-    # Mussels are listed under the site's noodle category, but the product
-    # itself is a standalone seafood main course, not a noodle dish.
+    # The user confirmed both mussel dishes belong to appetizers,
+    # even when the source menu places them in another section.
     if has_any(name_text, ("rannakarp", "mussel", "миди")):
-        return "main_courses"
+        return "appetizers"
 
     if has_any(category_text, _NOODLE_MARKERS) or has_any(name_text, _NOODLE_MARKERS):
         return "noodles"
