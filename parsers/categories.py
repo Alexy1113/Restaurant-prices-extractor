@@ -161,8 +161,8 @@ def _is_noodles_or_pasta_category(category_ru=None, category_et=None):
     russian = " ".join(str(category_ru or "").split()).casefold()
     estonian = " ".join(str(category_et or "").split()).casefold()
     return bool(
-        re.search(r"(?:лапш\\w*|паст\\w*)", russian)
-        or re.search(r"(?:nuudl\\w*|pasta)", estonian)
+        re.search(r"(?:лапш\w*|паст\w*)", russian)
+        or re.search(r"(?:nuudl\w*|pasta)", estonian)
     )
 
 
