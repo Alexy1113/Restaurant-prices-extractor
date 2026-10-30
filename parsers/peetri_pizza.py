@@ -295,8 +295,86 @@ def get_stable_code(card, name, variant=None):
     return f"peetri-johvi:{base}"
 
 
+def extract_initial_react_state(html):
+    """Decode the server-provided JSON state used by Peetri Pizza's React app."""
+    anchor = (html or "").find("window.initialReactState")
+    if anchor < 0:
+        return None
+
+    object_start = (html or "").find("{", anchor)
+    if object_start < 0:
+        return None
+
+    try:
+        state, _ = json.JSONDecoder().raw_decode(html[object_start:])
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
+
+    return state if isinstance(state, dict) else None
+
+
+def parse_react_pizzas(state):
+    """Convert the location-specific productsData.pizzas array into DB rows."""
+    products_data = state.get("productsData") if isinstance(state, dict) else None
+    products = products_data.get("pizzas") if isinstance(products_data, dict) else None
+    if not isinstance(products, list):
+        return []
+
+    parsed = []
+    seen_codes = set()
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+
+        name = clean_text(product.get("name"))
+        price = parse_price(product.get("minPrice"))
+        if not name or price is None or price <= 0:
+            continue
+
+        template_id = product.get("templateId") or product.get("id")
+        code = (
+            f"peetri-johvi:pizza:{template_id}"
+            if template_id is not None
+            else f"peetri-johvi:pizza:{slugify(name)}"
+        )
+        if code in seen_codes:
+            continue
+        seen_codes.add(code)
+
+        toppings = product.get("originalToppings") or []
+        description = ", ".join(
+            clean_text(topping.get("name"))
+            for topping in toppings
+            if isinstance(topping, dict)
+            and topping.get("isOriginal", True)
+            and not topping.get("isRemoved", False)
+            and clean_text(topping.get("name"))
+        )
+
+        parsed.append({
+            "dish_code": code,
+            "dish_name": name,
+            "dish_name_et": name,
+            "dish_name_ru": None,
+            "description_et": description or None,
+            "category_ru": "Пицца",
+            "category_et": "Pitsad",
+            "product_type": "pizzas",
+            "price": price,
+            "price_variant": None,
+        })
+
+    return parsed
+
+
 def parse_html(html):
     """Parse only pizza records from a Peetri Pizza pizzeria page."""
+    initial_state = extract_initial_react_state(html)
+    if initial_state:
+        react_pizzas = parse_react_pizzas(initial_state)
+        if react_pizzas:
+            return react_pizzas
+
     soup = BeautifulSoup(html or "", "html.parser")
     section = _find_pizza_section(soup)
     if section is None:
@@ -348,61 +426,17 @@ def parse_menu():
     if not dishes:
         soup = BeautifulSoup(response.text, "html.parser")
         page_title = clean_text(soup.title.get_text(" ", strip=True)) if soup.title else ""
-        headings = [
-            clean_text(node.get_text(" ", strip=True))
-            for node in soup.find_all(["h1", "h2", "h3", "h4"])
-        ]
-        body_text = (
-            clean_text(soup.body.get_text(" ", strip=True))[:2500]
-            if soup.body else ""
+        state = extract_initial_react_state(response.text)
+        products_data = state.get("productsData", {}) if isinstance(state, dict) else {}
+        pizza_count = len(products_data.get("pizzas", [])) if isinstance(products_data, dict) and isinstance(products_data.get("pizzas"), list) else 0
+        print(
+            f"[Peetri Pizza/Jõhvi][Диагностика] title={page_title!r}; "
+            f"React state={'yes' if state else 'no'}; "
+            f"productsData keys={list(products_data) if isinstance(products_data, dict) else []}; "
+            f"pizzas={pizza_count}"
         )
-        script_sources = [
-            node.get("src")
-            for node in soup.find_all("script", src=True)
-        ]
-        root_nodes = [
-            {
-                "tag": node.name,
-                "id": node.get("id"),
-                "class": node.get("class"),
-            }
-            for node in (soup.body.find_all(recursive=False)[:20] if soup.body else [])
-        ]
-        html_lower = response.text.casefold()
-        marker_contexts = {}
-        for marker in ("pizzad", "pizza", "product", "graphql", "wp-json", "api", "react", "next"):
-            position = html_lower.find(marker)
-            if position >= 0:
-                marker_contexts[marker] = response.text[max(0, position - 180):position + 420]
-        print(f"[Peetri Pizza/Jõhvi][Диагностика] Заголовок страницы: {page_title!r}")
-        print(f"[Peetri Pizza/Jõhvi][Диагностика] Заголовки: {headings[:40]!r}")
-        print(f"[Peetri Pizza/Jõhvi][Диагностика] Текст страницы: {body_text!r}")
-        print(f"[Peetri Pizza/Jõhvi][Диагностика] Script src: {script_sources[:50]!r}")
-        print(f"[Peetri Pizza/Jõhvi][Диагностика] Body roots: {root_nodes!r}")
-        print(f"[Peetri Pizza/Jõhvi][Диагностика] HTML marker contexts: {marker_contexts!r}")
-        state_anchor = response.text.find("window.initialReactState")
-        if state_anchor >= 0:
-            object_start = response.text.find("{", state_anchor)
-            try:
-                initial_state, _ = json.JSONDecoder().raw_decode(
-                    response.text[object_start:]
-                )
-                pizza_rows = (
-                    initial_state.get("productsData", {}).get("pizzas", [])
-                    if isinstance(initial_state, dict) else []
-                )
-                print(
-                    "[Peetri Pizza/Jõhvi][Диагностика] React state keys: "
-                    f"{list(initial_state) if isinstance(initial_state, dict) else type(initial_state)}"
-                )
-                print(
-                    "[Peetri Pizza/Jõhvi][Диагностика] Pizzeria state: "
-                    f"{initial_state.get('pizzeria') if isinstance(initial_state, dict) else None}"
-                )
-                print(
-                    "[Peetri Pizza/Jõhvi][Диагностика] Pizzas count/sample: "
-                    f"{len(pizza_rows)} / {json.dumps(pizza_rows[:2], ensure_ascii=False)[:5000]}"
-                )
-            except (json.JSONDecodeError, AttributeError, TypeError, ValueError) as error:
-                print(f"[Peetri Pizza/Jõhvi][Диагностика] React state JSON error: {error}")
+        print(
+            "[Peetri Pizza/Jõhvi] Не найдена секция Pizzad или в исходном "
+            "состоянии не обнаружены пиццы. Supabase не будет изменена."
+        )
     return dishes
