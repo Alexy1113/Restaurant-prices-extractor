@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "restaurant-taxonomy"
+version = "1.0.0"
+description = "Shared category registry and normalization for restaurant menu parsers and website"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["restaurant_taxonomy"]
+
+[tool.setuptools.package-data]
+restaurant_taxonomy = ["categories.json"]
