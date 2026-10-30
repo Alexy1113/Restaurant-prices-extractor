@@ -297,7 +297,7 @@ def get_product_type(category, name):
 
     # Keep the original parser product types, but normalize both categories
     # to the shared public-facing "Лапша и Паста" category downstream.
-    if any(word in category_text for word in ("лапш", "noodle", "nuudel", "nudel")):
+    if any(word in category_text for word in ("лапш", "noodle", "nuudl", "nudel")):
         return "noodles"
     if any(word in category_text for word in ("паст", "pasta")):
         return "pasta"
