@@ -1,7 +1,14 @@
 """Regression tests for the shared restaurant category taxonomy."""
 import unittest
 
-from parsers.categories import canonical_category_ru, canonical_category_et
+from parsers.categories import (
+    CATEGORIES,
+    category_label,
+    get_category_emoji,
+    resolve_category_key,
+    canonical_category_ru,
+    canonical_category_et,
+)
 from parsers.monk import get_product_type as get_monk_product_type
 from parsers.ocean_sushi import get_product_type
 
@@ -16,9 +23,9 @@ class CategoryNormalizationTests(unittest.TestCase):
                 )
 
     def test_sets_and_roll_variants_are_unified(self):
-        self.assertEqual(canonical_category_ru("sets", "Комплекты"), "Сеты")
-        self.assertEqual(canonical_category_ru("sushi_rolls", "Суши"), "Роллы")
-        self.assertEqual(canonical_category_ru("hosomaki", "Хосомаки"), "Роллы")
+        self.assertEqual(canonical_category_ru("sets", "Комплекты"), "Наборы и комбо")
+        self.assertEqual(canonical_category_ru("sushi_rolls", "Суши"), "Роллы и маки")
+        self.assertEqual(canonical_category_ru("hosomaki", "Хосомаки"), "Роллы и маки")
 
     def test_alcohol_age_warning_is_preserved(self):
         self.assertEqual(
@@ -54,15 +61,15 @@ class CategoryNormalizationTests(unittest.TestCase):
 
     def test_estonian_categories_follow_shared_russian_category_taxonomy(self):
         cases = (
-            ("main_courses", "Основные блюда", "Põhiroad"),
+            ("main_courses", "Основные блюда", "Pearoad"),
             ("appetizers", "Закуски", "Eelroad"),
             ("tortillas", "Тортильи", "Tortillad"),
             ("sides", "Гарниры", "Lisandid"),
             ("salads", "Салаты", "Salatid"),
             ("desserts", "Десерты", "Magustoidud"),
-            ("sushi_rolls", "Роллы", "Maki"),
-            ("gunkan", "Гунканы", "Gunkanid"),
-            ("sets", "Сеты", "Komplektid"),
+            ("sushi_rolls", "Роллы и маки", "Sushirullid ja maki"),
+            ("gunkan", "Гунканы", "Gunkan"),
+            ("sets", "Наборы и комбо", "Komplektid"),
             ("soups", "Супы", "Supid"),
             ("noodles", "Лапша и Паста", "Nuudlid ja pasta"),
         )
@@ -104,7 +111,7 @@ class CategoryNormalizationTests(unittest.TestCase):
         )
         self.assertEqual(
             canonical_category_ru("tempura", "Суши", "Sushi", "Ebi tempura"),
-            "Роллы",
+            "Роллы и маки",
         )
 
     def test_ocean_sushi_hot_baked_rolls_are_grouped_as_rolls(self):
@@ -132,7 +139,7 @@ class CategoryNormalizationTests(unittest.TestCase):
                         category_ru="Запечённые",
                         dish_name=name,
                     ),
-                    "Роллы",
+                    "Роллы и маки",
                 )
 
     def test_ocean_sushi_baked_roll_category_normalized_in_both_languages(self):
@@ -147,7 +154,7 @@ class CategoryNormalizationTests(unittest.TestCase):
                 self.assertEqual(product_type, "sushi_rolls")
                 self.assertEqual(
                     canonical_category_ru(product_type, category_ru=category, dish_name=name),
-                    "Роллы",
+                    "Роллы и маки",
                 )
                 self.assertEqual(
                     canonical_category_et(
@@ -156,7 +163,7 @@ class CategoryNormalizationTests(unittest.TestCase):
                         category_et=category,
                         dish_name=name,
                     ),
-                    "Maki",
+                    "Sushirullid ja maki",
                 )
 
         # A baked gunkan maps to the regular gunkan category in Estonian.
@@ -167,11 +174,11 @@ class CategoryNormalizationTests(unittest.TestCase):
                 category_et="Küpsetatud Gunkan",
                 dish_name="Lõhe Gunkan",
             ),
-            "Gunkanid",
+            "Gunkan",
         )
         self.assertEqual(
             canonical_category_et("sushi_rolls", category_ru="Роллы", category_et="Maki"),
-            "Maki",
+            "Sushirullid ja maki",
         )
 
     def test_ocean_sushi_baked_gunkan_remains_gunkan(self):
@@ -209,7 +216,7 @@ class CategoryNormalizationTests(unittest.TestCase):
                         category_ru=category,
                         dish_name=name,
                     ),
-                    "Роллы",
+                    "Роллы и маки",
                 )
 
     def test_monk_baked_sushi_section_is_grouped_as_rolls(self):
@@ -229,7 +236,7 @@ class CategoryNormalizationTests(unittest.TestCase):
                         category_ru=category,
                         dish_name=name,
                     ),
-                    "Роллы",
+                    "Роллы и маки",
                 )
 
     def test_unknown_baked_section_is_not_guessed(self):
@@ -260,7 +267,7 @@ class CategoryNormalizationTests(unittest.TestCase):
                         category_et="Põhiroad",
                         dish_name=name,
                     ),
-                    "Põhiroad",
+                    "Pearoad",
                 )
 
     def test_alcohol_is_detected_from_dish_name_in_generic_drinks_category(self):
@@ -337,6 +344,50 @@ class CategoryNormalizationTests(unittest.TestCase):
     def test_gin_tonic_still_counts_as_drink(self):
         self.assertEqual(get_product_type("Drinks", "Gin Tonic"), "drinks")
 
+
+    def test_registry_owns_all_canonical_labels_and_emojis(self):
+        expected = {
+            "sets": ("Наборы и комбо", "Komplektid", "📦"),
+            "sushi_rolls": ("Роллы и маки", "Sushirullid ja maki", "🍣"),
+            "sauces": ("Соусы и добавки", "Kastmed ja lisandid", "🌶️"),
+            "syrups": ("Сиропы и добавки", "Siirupid ja lisandid", "🍯"),
+            "breakfast": ("Завтраки", "Hommikusöök", "🍳"),
+            "main_courses": ("Основные блюда", "Pearoad", "🍛"),
+            "gunkan": ("Гунканы", "Gunkan", "🍣"),
+            "bowls": ("Боулы", "Bow'id", "🥣"),
+            "tortillas": ("Тортильи", "Tortillad", "🌯"),
+        }
+        for key, (expected_ru, expected_et, emoji) in expected.items():
+            with self.subTest(category=key):
+                self.assertEqual(category_label(key, "Русский"), expected_ru)
+                self.assertEqual(category_label(key, "Eesti"), expected_et)
+                self.assertEqual(CATEGORIES[key]["emoji"], emoji)
+                self.assertEqual(get_category_emoji(key), emoji)
+
+    def test_distinct_categories_remain_distinct(self):
+        self.assertEqual(resolve_category_key("drinks", "Напитки", "Joogid"), "drinks")
+        self.assertEqual(
+            resolve_category_key("drinks", "Алкогольные напитки (18+)", "Joogid"),
+            "alcoholic_drinks",
+        )
+        self.assertEqual(resolve_category_key("appetizers"), "appetizers")
+        self.assertEqual(resolve_category_key("sides"), "sides")
+        self.assertEqual(resolve_category_key("sushi_rolls"), "sushi_rolls")
+        self.assertEqual(resolve_category_key("nigiri"), "nigiri")
+        self.assertEqual(resolve_category_key("sashimi"), "sashimi")
+        self.assertEqual(resolve_category_key("sauces"), "sauces")
+        self.assertEqual(resolve_category_key("syrups"), "syrups")
+
+    def test_legacy_category_labels_resolve_to_the_new_canonical_labels(self):
+        cases = (
+            ("tortillas", "Врапы и шаурма", "Wrapid ja kebabid", "Тортильи", "Tortillad"),
+            ("sets", "Сеты", "Komplektid", "Наборы и комбо", "Komplektid"),
+            ("sushi_rolls", "Роллы", "Maki", "Роллы и маки", "Sushirullid ja maki"),
+        )
+        for product_type, ru_source, et_source, expected_ru, expected_et in cases:
+            with self.subTest(product_type=product_type):
+                self.assertEqual(canonical_category_ru(product_type, ru_source, et_source), expected_ru)
+                self.assertEqual(canonical_category_et(product_type, ru_source, et_source), expected_et)
 
     def test_pizza_category_is_canonical_in_both_languages(self):
         self.assertEqual(
