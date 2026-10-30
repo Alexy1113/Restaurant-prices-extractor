@@ -380,14 +380,13 @@ def parse_menu():
         print(f"[Peetri Pizza/Jõhvi][Диагностика] Script src: {script_sources[:50]!r}")
         print(f"[Peetri Pizza/Jõhvi][Диагностика] Body roots: {root_nodes!r}")
         print(f"[Peetri Pizza/Jõhvi][Диагностика] HTML marker contexts: {marker_contexts!r}")
-        state_match = re.search(
-            r"window\.initialReactState\s*=\s*({.*?})\s*;",
-            response.text,
-            re.DOTALL,
-        )
-        if state_match:
+        state_anchor = response.text.find("window.initialReactState")
+        if state_anchor >= 0:
+            object_start = response.text.find("{", state_anchor)
             try:
-                initial_state = json.loads(state_match.group(1))
+                initial_state, _ = json.JSONDecoder().raw_decode(
+                    response.text[object_start:]
+                )
                 pizza_rows = (
                     initial_state.get("productsData", {}).get("pizzas", [])
                     if isinstance(initial_state, dict) else []
@@ -404,10 +403,6 @@ def parse_menu():
                     "[Peetri Pizza/Jõhvi][Диагностика] Pizzas count/sample: "
                     f"{len(pizza_rows)} / {json.dumps(pizza_rows[:2], ensure_ascii=False)[:5000]}"
                 )
-            except (json.JSONDecodeError, AttributeError, TypeError) as error:
+            except (json.JSONDecodeError, AttributeError, TypeError, ValueError) as error:
                 print(f"[Peetri Pizza/Jõhvi][Диагностика] React state JSON error: {error}")
-        print(
-            "[Peetri Pizza/Jõhvi] Не найдена секция Pizzad или в карточках "
-            "не обнаружены названия и цены. Supabase не будет изменена."
-        )
     return dishes
