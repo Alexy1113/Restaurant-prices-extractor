@@ -555,6 +555,11 @@ def get_product_type(category, name):
     if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
 
+    # Every product in the site's Praad / Жаркое section is a main course,
+    # including fries served with sausages or nuggets and other meal portions.
+    if has_any(category_text, ("praad", "жаркое")):
+        return "main_courses"
+
     # Explicit menu sections such as Hot dog, Shawarma and Kebab take priority
     # over incidental words like "lavas" in the dish title.
     if has_any(category_text, (
