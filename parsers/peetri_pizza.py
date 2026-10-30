@@ -381,7 +381,7 @@ def parse_menu():
         print(f"[Peetri Pizza/Jõhvi][Диагностика] Body roots: {root_nodes!r}")
         print(f"[Peetri Pizza/Jõhvi][Диагностика] HTML marker contexts: {marker_contexts!r}")
         state_match = re.search(
-            r"window\\.initialReactState\\s*=\\s*({.*?})\\s*;",
+            r"window\.initialReactState\s*=\s*({.*?})\s*;",
             response.text,
             re.DOTALL,
         )
