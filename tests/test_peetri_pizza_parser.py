@@ -81,6 +81,53 @@ class PeetriPizzaParserTests(unittest.TestCase):
         )
         self.assertNotEqual(dishes[0]["dish_code"], dishes[1]["dish_code"])
 
+    def test_parses_realistic_react_state_and_ignores_other_product_sections(self):
+        html = '''
+        <html>
+          <head><title>Peetri Pizza</title></head>
+          <body>
+            <div id="page"></div>
+            <script>
+              window.initialReactState = {
+                "lang": "et",
+                "pizzeria": {"name": "Jõhvi bussijaam"},
+                "productsData": {
+                  "pizzas": [
+                    {
+                      "name": "Margherita",
+                      "templateId": 19,
+                      "minPrice": 5.5,
+                      "originalToppings": [
+                        {"name": "Juust", "isOriginal": true, "isRemoved": false},
+                        {"name": "Kaste", "isOriginal": true, "isRemoved": false}
+                      ]
+                    },
+                    {"name": "Pepperoni", "templateId": 81, "minPrice": 6.5}
+                  ],
+                  "pastas": [
+                    {"name": "Bolognese", "templateId": 201, "minPrice": 7.9}
+                  ],
+                  "drinks": [
+                    {"name": "Pepsi", "templateId": 301, "minPrice": 2.5}
+                  ]
+                }
+              };
+            </script>
+          </body>
+        </html>
+        '''
+        dishes = parse_html(html)
+        self.assertEqual(
+            [dish["dish_name_et"] for dish in dishes],
+            ["Margherita", "Pepperoni"],
+        )
+        self.assertEqual([dish["price"] for dish in dishes], [5.5, 6.5])
+        self.assertEqual(dishes[0]["description_et"], "Juust, Kaste")
+        self.assertEqual(
+            [dish["dish_code"] for dish in dishes],
+            ["peetri-johvi:pizza:19", "peetri-johvi:pizza:81"],
+        )
+
     def test_missing_pizza_section_returns_no_records(self):
         self.assertEqual(
             parse_html("<section><h2>Pastad</h2><p>None</p></section>"),
