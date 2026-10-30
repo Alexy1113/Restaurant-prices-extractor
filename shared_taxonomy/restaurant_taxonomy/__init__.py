@@ -85,7 +85,9 @@ def category_label(category_key: str | None, language: str = "Русский") -
 def category_key_for_product_type(product_type: str | None) -> str | None:
     """Resolve a parser product_type to its public category key."""
     value = str(product_type or "").strip().casefold()
-    if not value:
+    if not value or value == "other":
+        # "other" is deliberately contextual: preserve informative source
+        # headings instead of overriding them with the generic fallback.
         return None
     key = PRODUCT_TYPE_ALIASES.get(value, value)
     return key if key in CATEGORIES else None
@@ -117,6 +119,9 @@ def resolve_category_key(
     name = " ".join(str(dish_name or "").split()).strip()
     source_categories = f"{ru} {et}"
     source_text = f"{source_categories} {name}"
+
+    if product in {"alcoholic_drinks", "alcoholicdrinks"}:
+        return "alcoholic_drinks"
 
     is_drink = product in DRINK_PRODUCT_TYPES or (
         product == "other" and _is_drink_like(source_categories)
