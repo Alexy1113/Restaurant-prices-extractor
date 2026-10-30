@@ -9,7 +9,7 @@ import re
 CATEGORY_RU_BY_PRODUCT_TYPE = {
     "main_courses": "Основные блюда",
     "pizzas": "Пицца",
-    "pasta": "Паста",
+    "pasta": "Лапша и Паста",
     "bowls": "Боулы",
     "burgers": "Бургеры",
     "tortillas": "Врапы и шаурма",
@@ -28,7 +28,7 @@ CATEGORY_RU_BY_PRODUCT_TYPE = {
     "sets": "Сеты",
     "inari": "Инари",
     "soups": "Супы",
-    "noodles": "Лапша",
+    "noodles": "Лапша и Паста",
     "dumplings": "Пельмени и дим-сам",
     "syrups": "Сиропы",
     "ice_cream_shakes": "Напитки",
@@ -61,7 +61,7 @@ _ROLL_RE = re.compile(
 CATEGORY_ET_BY_PRODUCT_TYPE = {
     "main_courses": "Põhiroad",
     "pizzas": "Pitsad",
-    "pasta": "Pastad",
+    "pasta": "Nuudlid ja pasta",
     "bowls": "Bowls",
     "burgers": "Burgerid",
     "tortillas": "Wrapid ja kebabid",
@@ -80,7 +80,7 @@ CATEGORY_ET_BY_PRODUCT_TYPE = {
     "sets": "Komplektid",
     "inari": "Inari",
     "soups": "Supid",
-    "noodles": "Nuudlid",
+    "noodles": "Nuudlid ja pasta",
     "dumplings": "Pelmeenid ja dim sum",
     "syrups": "Siirupid",
     "ice_cream_shakes": "Joogid",
@@ -90,7 +90,7 @@ CATEGORY_ET_BY_PRODUCT_TYPE = {
 CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
     "основные блюда": "Põhiroad",
     "пицца": "Pitsad",
-    "паста": "Pastad",
+    "паста": "Nuudlid ja pasta",
     "боулы": "Bowls",
     "бургеры": "Burgerid",
     "тортильи": "Tortillad",
@@ -109,7 +109,7 @@ CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
     "сеты": "Komplektid",
     "инари": "Inari",
     "супы": "Supid",
-    "лапша": "Nuudlid",
+    "лапша": "Nuudlid ja pasta",
     "пельмени и дим-сам": "Pelmeenid ja dim sum",
     "сиропы": "Siirupid",
     "акции": "Kampaaniad",
@@ -156,6 +156,16 @@ def _is_drink_like(source_text, product_type=None):
     return bool(drink_pattern.search(text))
 
 
+def _is_noodles_or_pasta_category(category_ru=None, category_et=None):
+    """Recognize source menu sections that contain either noodles or pasta."""
+    russian = " ".join(str(category_ru or "").split()).casefold()
+    estonian = " ".join(str(category_et or "").split()).casefold()
+    return bool(
+        re.search(r"(?:лапш\\w*|паст\\w*)", russian)
+        or re.search(r"(?:nuudl\\w*|pasta)", estonian)
+    )
+
+
 def canonical_category_ru(
     product_type,
     category_ru=None,
@@ -180,6 +190,9 @@ def canonical_category_ru(
         if _is_alcoholic(source_text, product_type):
             return "Алкогольные напитки (18+)"
         return "Напитки"
+
+    if _is_noodles_or_pasta_category(russian_category, estonian_category):
+        return "Лапша и Паста"
 
     # Preserve the 18+ distinction while merging wine/champagne/low-alcohol
     # subcategories into one clear label.
@@ -234,6 +247,9 @@ def canonical_category_et(
         if _is_alcoholic(source_text, product_type):
             return "Alkohoolsed joogid (18+)"
         return "Joogid"
+
+    if _is_noodles_or_pasta_category(russian_category, estonian_category):
+        return "Nuudlid ja pasta"
 
     # Merge wine, champagne, beer and other alcoholic subcategories into one
     # Estonian label, matching the Russian "Алкогольные напитки (18+)" group.
