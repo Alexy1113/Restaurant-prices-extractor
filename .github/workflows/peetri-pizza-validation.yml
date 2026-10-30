@@ -1,0 +1,136 @@
+name: Peetri Pizza parser validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "parsers/peetri_pizza.py"
+      - "parsers/categories.py"
+      - "parsers/monk.py"
+      - "shared_taxonomy/**"
+      - "tests/test_peetri_pizza_parser.py"
+      - "tests/test_categories.py"
+      - ".github/workflows/peetri-pizza-validation.yml"
+  push:
+    branches:
+      - feature/peetri-pizza-johvi
+    paths:
+      - "parsers/peetri_pizza.py"
+      - "parsers/categories.py"
+      - "parsers/monk.py"
+      - "shared_taxonomy/**"
+      - "tests/test_peetri_pizza_parser.py"
+      - "tests/test_categories.py"
+      - ".github/workflows/peetri-pizza-validation.yml"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install parser dependencies
+        run: python -m pip install --upgrade pip requests beautifulsoup4
+
+      - name: Install shared taxonomy package
+        run: python -m pip install ./shared_taxonomy
+
+      - name: Verify installed category registry
+        run: |
+          cd /tmp
+          python - <<'PY'
+          from restaurant_taxonomy import category_label, resolve_category_key
+
+          assert category_label("sets", "Русский") == "Наборы и комбо"
+          assert category_label("sushi_rolls", "Eesti") == "Sushirullid ja maki"
+          assert resolve_category_key("pasta") == "noodles_pasta"
+          print("Installed shared taxonomy package passed.")
+          PY
+
+      - name: Compile Peetri Pizza parser and tests
+        run: python -m compileall -q shared_taxonomy parsers/peetri_pizza.py tests/test_peetri_pizza_parser.py tests/test_categories.py
+
+      - name: Run Peetri Pizza parser tests
+        run: python -m unittest discover -s tests -p "test_peetri_pizza_parser.py" -v
+
+      - name: Run shared category tests
+        run: python -m unittest discover -s tests -p "test_categories.py" -v
+
+  # Trigger this job by pushing a commit containing [live-test].
+# It reads the real public menu only and never writes to Supabase.
+# A passing live smoke test confirms actual location-specific menu parsing.
+  live-site-smoke-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install parser dependencies
+        run: python -m pip install --upgrade pip requests beautifulsoup4
+
+      - name: Install shared taxonomy package
+        run: python -m pip install ./shared_taxonomy
+
+      - name: Verify installed category registry
+        run: |
+          cd /tmp
+          python - <<'PY'
+          from restaurant_taxonomy import category_label, resolve_category_key
+
+          assert category_label("sets", "Русский") == "Наборы и комбо"
+          assert category_label("sushi_rolls", "Eesti") == "Sushirullid ja maki"
+          assert resolve_category_key("pasta") == "noodles_pasta"
+          print("Installed shared taxonomy package passed.")
+          PY
+
+      - name: Parse live Jõhvi menu without writing to Supabase
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from parsers.peetri_pizza import parse_menu
+
+          rows = parse_menu()
+          counts = Counter(row["product_type"] for row in rows)
+          pizzas = [row for row in rows if row["product_type"] == "pizzas"]
+          pasta = [row for row in rows if row["product_type"] == "pasta"]
+          combos = [row for row in rows if row["product_type"] == "sets"]
+
+          print(f"LIVE SMOKE TEST: {len(rows)} total price rows")
+          print(f"Pizza rows: {len(pizzas)}; unique pizzas: {len({row['dish_name'] for row in pizzas})}")
+          print(f"Pasta rows: {len(pasta)}; combos: {len(combos)}; counts: {dict(counts)}")
+
+          unique_pizzas = {row["dish_name"] for row in pizzas}
+          assert len(unique_pizzas) == 31, "Expected 31 unique pizzas."
+          assert len(pizzas) >= 31, "Every pizza must have at least one available priced size."
+          assert len(pasta) == 4, f"Expected 4 pasta products; got {len(pasta)}."
+          assert len(combos) == 1, f"Expected one combo product; got {len(combos)}."
+
+          expected_sizes = {"small", "large", "family"}
+          for name in unique_pizzas:
+              sizes = {row["price_variant"] for row in pizzas if row["dish_name"] == name}
+              assert sizes and sizes <= expected_sizes, f"{name}: unexpected size options {sizes}"
+          assert len({row["dish_code"] for row in rows}) == len(rows), "Duplicate dish_code values detected."
+
+          invalid = [
+              row for row in rows
+              if not row.get("dish_name")
+              or not row.get("dish_code")
+              or float(row.get("price") or 0) <= 0
+          ]
+          assert not invalid, f"Invalid menu rows: {invalid[:5]}"
+          print("Live menu test passed. Supabase was not contacted.")
+          PY

@@ -15,6 +15,7 @@ from parsers.ocean_sushi import parse_menu as parse_ocean
 from parsers.hesburger import parse_menu as parse_hesburger
 from parsers.monk import parse_menu as parse_monk
 from parsers.break_time import parse_menu as parse_break_time
+from parsers.peetri_pizza import parse_menu as parse_peetri_pizza
 from parsers.categories import (
     canonical_category_ru,
     canonical_category_et,
@@ -309,9 +310,9 @@ def main():
     )
     parser.add_argument(
         "--restaurant",
-        choices=("all", "ocean", "hesburger", "monk", "break-time"),
+        choices=("all", "ocean", "hesburger", "monk", "break-time", "peetri-pizza"),
         default="all",
-        help="Какой ресторан обрабатывать: all (по умолчанию), ocean, hesburger, monk или break-time.",
+        help="Какой ресторан обрабатывать: all (по умолчанию), ocean, hesburger, monk, break-time или peetri-pizza.",
     )
     args = parser.parse_args()
 
@@ -320,6 +321,7 @@ def main():
         "hesburger": (parse_hesburger, "Hesburger"),
         "monk": (parse_monk, "Monk Jõhvi"),
         "break-time": (parse_break_time, "Break Time Burger & Wrap"),
+        "peetri-pizza": (parse_peetri_pizza, "Peetri Pizza Jõhvi Bussijaam"),
     }
     selected_parsers = (
         list(restaurant_parsers.items())

@@ -137,7 +137,7 @@ class BreakTimeClassificationTests(unittest.TestCase):
                 "sets", category_ru="Напитки", category_et="Joogid",
                 dish_name="Шаурма + картофель фри + напиток",
             ),
-            "Сеты",
+            "Наборы и комбо",
         )
         self.assertEqual(
             canonical_category_et(

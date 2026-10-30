@@ -1,0 +1,313 @@
+{
+  "version": 1,
+  "default_language": "Русский",
+  "languages": {
+    "Русский": "ru",
+    "Eesti": "et",
+    "ru": "ru",
+    "et": "et"
+  },
+  "product_type_aliases": {
+    "noodles": "noodles_pasta",
+    "pasta": "noodles_pasta",
+    "hosomaki": "sushi_rolls",
+    "ice_cream_shakes": "drinks",
+    "hot_drinks": "drinks",
+    "hotdrinks": "drinks",
+    "cocktails": "drinks",
+    "cocktail": "drinks",
+    "alcoholic_drinks": "alcoholic_drinks",
+    "alcoholicdrinks": "alcoholic_drinks"
+  },
+  "categories": {
+    "main_courses": {
+      "ru": "Основные блюда",
+      "et": "Pearoad",
+      "emoji": "🍛",
+      "aliases": {
+        "ru": [],
+        "et": [
+          "Põhiroad"
+        ]
+      }
+    },
+    "pizzas": {
+      "ru": "Пицца",
+      "et": "Pitsad",
+      "emoji": "🍕",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "noodles_pasta": {
+      "ru": "Лапша и Паста",
+      "et": "Nuudlid ja pasta",
+      "emoji": "🍜",
+      "aliases": {
+        "ru": [
+          "Лапша",
+          "Паста",
+          "Паста и бириани"
+        ],
+        "et": [
+          "Nuudlid",
+          "Pastad",
+          "Pasta"
+        ]
+      }
+    },
+    "bowls": {
+      "ru": "Боулы",
+      "et": "Bow'id",
+      "emoji": "🥣",
+      "aliases": {
+        "ru": [],
+        "et": [
+          "Bowls"
+        ]
+      }
+    },
+    "burgers": {
+      "ru": "Бургеры",
+      "et": "Burgerid",
+      "emoji": "🍔",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "tortillas": {
+      "ru": "Тортильи",
+      "et": "Tortillad",
+      "emoji": "🌯",
+      "aliases": {
+        "ru": [
+          "Врапы и шаурма"
+        ],
+        "et": [
+          "Wrapid ja kebabid"
+        ]
+      }
+    },
+    "breakfast": {
+      "ru": "Завтраки",
+      "et": "Hommikusöök",
+      "emoji": "🍳",
+      "aliases": {
+        "ru": [],
+        "et": [
+          "Hommikusöögid"
+        ]
+      }
+    },
+    "salads": {
+      "ru": "Салаты",
+      "et": "Salatid",
+      "emoji": "🥗",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "appetizers": {
+      "ru": "Закуски",
+      "et": "Eelroad",
+      "emoji": "🥟",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "sides": {
+      "ru": "Гарниры",
+      "et": "Lisandid",
+      "emoji": "🍚",
+      "aliases": {
+        "ru": [
+          "Гарнир"
+        ],
+        "et": [
+          "Lisand"
+        ]
+      }
+    },
+    "sauces": {
+      "ru": "Соусы и добавки",
+      "et": "Kastmed ja lisandid",
+      "emoji": "🌶️",
+      "aliases": {
+        "ru": [
+          "Соусы"
+        ],
+        "et": [
+          "Kastmed"
+        ]
+      }
+    },
+    "syrups": {
+      "ru": "Сиропы и добавки",
+      "et": "Siirupid ja lisandid",
+      "emoji": "🍯",
+      "aliases": {
+        "ru": [
+          "Сиропы"
+        ],
+        "et": [
+          "Siirupid"
+        ]
+      }
+    },
+    "drinks": {
+      "ru": "Напитки",
+      "et": "Joogid",
+      "emoji": "🥤",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "alcoholic_drinks": {
+      "ru": "Алкогольные напитки (18+)",
+      "et": "Alkohoolsed joogid (18+)",
+      "emoji": "🍷",
+      "aliases": {
+        "ru": [
+          "Алкогольные напитки"
+        ],
+        "et": [
+          "Alkohoolsed joogid",
+          "Alkoholijoogid"
+        ]
+      }
+    },
+    "desserts": {
+      "ru": "Десерты",
+      "et": "Magustoidud",
+      "emoji": "🍰",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "sushi_rolls": {
+      "ru": "Роллы и маки",
+      "et": "Sushirullid ja maki",
+      "emoji": "🍣",
+      "aliases": {
+        "ru": [
+          "Роллы"
+        ],
+        "et": [
+          "Maki",
+          "Sushirullid"
+        ]
+      }
+    },
+    "nigiri": {
+      "ru": "Нигири",
+      "et": "Nigiri",
+      "emoji": "🍣",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "sashimi": {
+      "ru": "Сашими",
+      "et": "Sashimi",
+      "emoji": "🍣",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "gunkan": {
+      "ru": "Гунканы",
+      "et": "Gunkan",
+      "emoji": "🍣",
+      "aliases": {
+        "ru": [],
+        "et": [
+          "Gunkanid"
+        ]
+      }
+    },
+    "sets": {
+      "ru": "Наборы и комбо",
+      "et": "Komplektid",
+      "emoji": "📦",
+      "aliases": {
+        "ru": [
+          "Сеты",
+          "Комплекты",
+          "Наборы"
+        ],
+        "et": [
+          "Komplekt"
+        ]
+      }
+    },
+    "inari": {
+      "ru": "Инари",
+      "et": "Inari",
+      "emoji": "🍣",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "soups": {
+      "ru": "Супы",
+      "et": "Supid",
+      "emoji": "🍲",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "dumplings": {
+      "ru": "Пельмени и дим-сам",
+      "et": "Pelmeenid ja dim sum",
+      "emoji": "🥟",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "tempura": {
+      "ru": "Темпура",
+      "et": "Tempura",
+      "emoji": "🍤",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "campaigns": {
+      "ru": "Акции",
+      "et": "Kampaaniad",
+      "emoji": "🏷️",
+      "aliases": {
+        "ru": [],
+        "et": []
+      }
+    },
+    "other": {
+      "ru": "Другое",
+      "et": "Muu",
+      "emoji": "➕",
+      "aliases": {
+        "ru": [
+          "Другие",
+          "Без категории",
+          "Other"
+        ],
+        "et": [
+          "Muud",
+          "Other"
+        ]
+      }
+    }
+  }
+}

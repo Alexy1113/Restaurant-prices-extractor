@@ -133,7 +133,7 @@ _DRINK_NAME_MARKERS = (
     "water", "vesi", "mahl", "juice", "limonaad", "lemonade", "coffee",
     "kohv", "espresso", "cappuccino", "latte", "tee", "kohvijook",
     "milkshake", "jäätisekokteil", "коктейл", "кофе", "чай", "вода",
-    "сок", "лимонад", "пиво", "вино",
+    "сок", "лимонад", "пиво", "вино", "jook",
 )
 _ALCOHOL_MARKERS = (
     "alkohool", "alcohol", "алкогол", "beer", "bier", "õlu", "vein",
@@ -151,7 +151,8 @@ _APPETIZER_NAME_MARKERS = (
     "chicken strips", "kanaribad", "strips", "стрипс", "nugget", "nagits",
     "наггет", "cheese ball", "juustupall", "сырные шарик", "сырные палоч",
     "mozzarella stick", "mozzarella juustu", "onion ring", "sibularõng",
-    "луков кольц", "squid ring", "kalmarirõng", "кальмар", "spring roll",
+    "луковые кольца", "луковых колец", "луковое кольцо",
+    "squid ring", "kalmarirõng", "кальмар", "spring roll",
     "kevadrull", "спринг-ролл", "chicken wing", "kanatiib",
     "куриные крылыш", "куриные шарик", "õlletaldrik", "пивная тарелка",
     "lihataldrik", "мясная тарелка", "vegetable roll",
@@ -596,9 +597,14 @@ def get_product_type(category, name):
     if has_any(category_text, _SOUP_MARKERS) or has_any(name_text, _SOUP_MARKERS):
         return "soups"
 
-    # The user confirmed both mussel dishes belong to appetizers,
-    # even when the source menu places them in another section.
-    if has_any(name_text, ("rannakarp", "mussel", "миди")):
+    # Distinguish the two mussel preparations found in the menu.
+    # "Rannakarbid koores" is a main course.
+    if has_any(name_text, ("rannakarbid koores",)):
+        return "main_courses"
+
+    # Other mussel dishes are appetizers, even if the source category
+    # incorrectly places them under noodles.
+    if has_any(name_text, ("rannakarb", "mussel", "миди")):
         return "appetizers"
 
     if has_any(category_text, _NOODLE_MARKERS) or has_any(name_text, _NOODLE_MARKERS):

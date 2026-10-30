@@ -295,7 +295,13 @@ def get_product_type(category, name):
     if any(word in all_text for word in ("суп", "soup", "supid", "tom kha", "tom yam", "том ям", "том кха", "miso", "мисо")):
         return "soups"
 
-    
+    # Keep the original parser product types, but normalize both categories
+    # to the shared public-facing "Лапша и Паста" category downstream.
+    if any(word in category_text for word in ("лапш", "noodle", "nuudl", "nudel")):
+        return "noodles"
+    if any(word in category_text for word in ("паст", "pasta")):
+        return "pasta"
+
     if any(word in name_text for word in ("noodle", "nuudel", "лапша", "nudel")):
         return "noodles"
 
