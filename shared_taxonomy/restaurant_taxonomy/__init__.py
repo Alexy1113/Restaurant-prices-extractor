@@ -22,27 +22,27 @@ DRINK_PRODUCT_TYPES = {
     "cocktails", "cocktail", "alcoholic_drinks", "alcoholicdrinks",
 }
 _ALCOHOL_RE = re.compile(
-    r"(?:18\\s*\\+|\\b(?:вино|вин[ао]|шампан\\w*|игрист\\w*|слабоалког\\w*|алкогол\\w*|"
-    r"wine|champagne|sparkling|beer|bier|õlu|vein\\w*|vahuvein\\w*|siider|cider|"
+    r"(?:18\s*\+|\b(?:вино|вин[ао]|шампан\w*|игрист\w*|слабоалког\w*|алкогол\w*|"
+    r"wine|champagne|sparkling|beer|bier|õlu|vein\w*|vahuvein\w*|siider|cider|"
     r"vodka|whisk(?:y|ey)|rum|tequila|prosecco|moscato|pinot|sinebrychoff|"
-    r"somersby|saku|raasiku|maschio|gin tonic)\\b|\\bgin\\b)",
+    r"somersby|saku|raasiku|maschio|gin tonic)\b|\bgin\b)",
     re.IGNORECASE,
 )
-_SUSHI_CATEGORY_RE = re.compile(r"\\b(?:суши|sushi)\\b", re.IGNORECASE)
+_SUSHI_CATEGORY_RE = re.compile(r"\b(?:суши|sushi)\b", re.IGNORECASE)
 _ROLL_RE = re.compile(
-    r"(?:\\brolls?\\b|\\brull\\w*|\\bmaki\\b|\\bhosomaki\\b|"
-    r"\\buramaki\\b|\\bfutomaki\\b|ролл|\\bмаки\\b|хосомаки)",
+    r"(?:\brolls?\b|\brull\w*|\bmaki\b|\bhosomaki\b|"
+    r"\buramaki\b|\bfutomaki\b|ролл|\bмаки\b|хосомаки)",
     re.IGNORECASE,
 )
 _DRINK_LIKE_RE = re.compile(
     r"(?:"
-    r"\\b(?:drink|drinks|beverage|beverages|coffee|espresso|cappuccino|"
+    r"\b(?:drink|drinks|beverage|beverages|coffee|espresso|cappuccino|"
     r"latte|tea|lemonade|cocktail|milkshake|shake|soda|cola|fanta|sprite|"
-    r"beer|bier|wine|vodka|whisky|whiskey|rum|gin|prosecco|hot drinks?)\\b|"
-    r"\\b(?:joog\\w*|jook|kohv\\w*|tee|limonaad\\w*|kokteil\\w*|"
-    r"alkohol\\w*|alcohol\\w*|õlu|vein\\w*|vahuvein\\w*|siider|cider)\\b|"
-    r"\\b(?:напит\\w*|горяч\\w* напит\\w*|коктейл\\w*|алкогол\\w*|"
-    r"пив\\w*|вин\\w*|ча\\w*|кофе|сок\\w*|молочн\\w* коктейл\\w*)\\b|"
+    r"beer|bier|wine|vodka|whisky|whiskey|rum|gin|prosecco|hot drinks?)\b|"
+    r"\b(?:joog\w*|jook|kohv\w*|tee|limonaad\w*|kokteil\w*|"
+    r"alkohol\w*|alcohol\w*|õlu|vein\w*|vahuvein\w*|siider|cider)\b|"
+    r"\b(?:напит\w*|горяч\w* напит\w*|коктейл\w*|алкогол\w*|"
+    r"пив\w*|вин\w*|ча\w*|кофе|сок\w*|молочн\w* коктейл\w*)\b|"
     r"jäätisekokteil|milk shake"
     r")",
     re.IGNORECASE,
@@ -126,7 +126,7 @@ def resolve_category_key(
 
     # Pasta/noodle source sections are intentionally one public category.
     if product in {"noodles", "pasta"} or re.search(
-        r"(?:лапш\\w*|паст\\w*|nuudl\\w*|pastad|\\bpasta\\b)",
+        r"(?:лапш\w*|паст\w*|nuudl\w*|pastad|\bpasta\b)",
         _fold(source_categories),
     ):
         return "noodles_pasta"
