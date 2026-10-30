@@ -43,3 +43,43 @@ jobs:
 
       - name: Run shared category tests
         run: python -m unittest discover -s tests -p "test_categories.py" -v
+
+  live-site-smoke-test:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[live-test]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install parser dependencies
+        run: python -m pip install --upgrade pip requests beautifulsoup4
+
+      - name: Parse live Jõhvi pizza menu without writing to Supabase
+        run: |
+          python - <<'PY'
+          from parsers.peetri_pizza import parse_menu
+
+          rows = parse_menu()
+          print(f"LIVE SMOKE TEST: extracted {len(rows)} Peetri Pizza Jõhvi rows")
+
+          assert rows, "The live Jõhvi page returned no pizza records."
+          invalid = [
+              row for row in rows
+              if not row.get("dish_name")
+              or not row.get("dish_code")
+              or not row.get("product_type") == "pizzas"
+              or not row.get("category_ru") == "Пицца"
+              or not row.get("category_et") == "Pitsad"
+              or float(row.get("price") or 0) <= 0
+          ]
+          assert not invalid, f"Invalid pizza records: {invalid[:5]}"
+
+          print("Live menu smoke test passed. Supabase was not contacted.")
+          PY
+
