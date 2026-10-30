@@ -5,6 +5,7 @@ drinks and combos) are intentionally not classified as pizzas.
 """
 import json
 import re
+import time
 import unicodedata
 
 import requests
@@ -313,8 +314,53 @@ def extract_initial_react_state(html):
     return state if isinstance(state, dict) else None
 
 
-def parse_react_pizzas(state):
-    """Convert the location-specific productsData.pizzas array into DB rows."""
+PIZZA_SIZE_ORDER = ("small", "large", "family")
+PIZZA_SIZE_LABELS = {
+    "small": "small",
+    "large": "large",
+    "family": "family",
+}
+REQUEST_DELAY_SECONDS = 0.15
+
+
+def fetch_pizza_size_prices(session, product):
+    """Load the size-selection step and return its complete availableSizes map."""
+    url = product.get("urlAddNew")
+    if not url:
+        return {}
+
+    response = session.get(url, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+    detail_state = extract_initial_react_state(response.text)
+    if not isinstance(detail_state, dict):
+        return {}
+
+    prices = detail_state.get("availableSizes")
+    if not isinstance(prices, dict):
+        return {}
+
+    result = {}
+    for size in PIZZA_SIZE_ORDER:
+        price = parse_price(prices.get(size))
+        if price is not None and price > 0:
+            result[size] = price
+    return result
+
+
+def _pizza_description(product):
+    toppings = product.get("originalToppings") or []
+    return ", ".join(
+        clean_text(topping.get("name"))
+        for topping in toppings
+        if isinstance(topping, dict)
+        and topping.get("isOriginal", True)
+        and not topping.get("isRemoved", False)
+        and clean_text(topping.get("name"))
+    ) or None
+
+
+def parse_react_pizzas(state, session=None):
+    """Return a separate price row for each available pizza size."""
     products_data = state.get("productsData") if isinstance(state, dict) else None
     products = products_data.get("pizzas") if isinstance(products_data, dict) else None
     if not isinstance(products, list):
@@ -322,58 +368,183 @@ def parse_react_pizzas(state):
 
     parsed = []
     seen_codes = set()
-    for product in products:
+    failed_size_lookups = 0
+
+    for index, product in enumerate(products):
         if not isinstance(product, dict):
             continue
 
         name = clean_text(product.get("name"))
-        price = parse_price(product.get("minPrice"))
-        if not name or price is None or price <= 0:
-            continue
-
         template_id = product.get("templateId") or product.get("id")
-        code = (
-            f"peetri-johvi:pizza:{template_id}"
-            if template_id is not None
-            else f"peetri-johvi:pizza:{slugify(name)}"
-        )
-        if code in seen_codes:
+        if not name or template_id is None:
             continue
-        seen_codes.add(code)
 
-        toppings = product.get("originalToppings") or []
-        description = ", ".join(
-            clean_text(topping.get("name"))
-            for topping in toppings
-            if isinstance(topping, dict)
-            and topping.get("isOriginal", True)
-            and not topping.get("isRemoved", False)
-            and clean_text(topping.get("name"))
+        size_prices = {}
+        if session is not None:
+            try:
+                size_prices = fetch_pizza_size_prices(session, product)
+            except requests.RequestException as error:
+                failed_size_lookups += 1
+                print(
+                    f"[Peetri Pizza/Jõhvi] Не удалось получить размеры "
+                    f"{name}: {error}"
+                )
+            if index < len(products) - 1:
+                time.sleep(REQUEST_DELAY_SECONDS)
+
+        # A live product with a working configurator returns all three size
+        # prices. If the detail request fails, retain the site's minimum
+        # advertised price as a small-size fallback rather than losing it.
+        if not size_prices:
+            minimum_price = parse_price(product.get("minPrice"))
+            if minimum_price is not None and minimum_price > 0:
+                size_prices = {"small": minimum_price}
+
+        description = _pizza_description(product)
+        for size in PIZZA_SIZE_ORDER:
+            price = size_prices.get(size)
+            if price is None:
+                continue
+
+            code = f"peetri-johvi:pizza:{template_id}:{size}"
+            if code in seen_codes:
+                continue
+            seen_codes.add(code)
+
+            parsed.append({
+                "dish_code": code,
+                "dish_name": name,
+                "dish_name_et": name,
+                "dish_name_ru": None,
+                "description_et": description,
+                "category_ru": "Пицца",
+                "category_et": "Pitsad",
+                "product_type": "pizzas",
+                "price": price,
+                "price_variant": size,
+            })
+
+    if failed_size_lookups:
+        print(
+            f"[Peetri Pizza/Jõhvi] Конфигуратор размеров не ответил "
+            f"для {failed_size_lookups} из {len(products)} пицц."
         )
+    return parsed
+
+
+def parse_react_pastas(state):
+    """Read the four pasta dishes from productsData.simpleProducts."""
+    products_data = state.get("productsData") if isinstance(state, dict) else None
+    products = products_data.get("simpleProducts") if isinstance(products_data, dict) else None
+    if not isinstance(products, list):
+        return []
+
+    parsed = []
+    for product in products:
+        if not isinstance(product, dict):
+            continue
+
+        category = normalize_text(product.get("categoryName"))
+        category_en = normalize_text(product.get("categoryNameEnglish"))
+        if category not in {"pastad", "pastas", "pasta"} and category_en not in {"pastas", "pasta"}:
+            continue
+
+        name = clean_text(product.get("name"))
+        price = parse_price(product.get("unitPrice"))
+        product_id = product.get("productId") or product.get("id")
+        if not name or price is None or price <= 0 or product_id is None:
+            continue
 
         parsed.append({
-            "dish_code": code,
+            "dish_code": f"peetri-johvi:pasta:{product_id}",
             "dish_name": name,
             "dish_name_et": name,
             "dish_name_ru": None,
-            "description_et": description or None,
-            "category_ru": "Пицца",
-            "category_et": "Pitsad",
-            "product_type": "pizzas",
+            "description_et": clean_text(product.get("description")) or None,
+            "category_ru": "Паста",
+            "category_et": "Pastad",
+            "product_type": "pasta",
+            "price": price,
+            "price_variant": clean_text(product.get("packageSize")) or None,
+        })
+    return parsed
+
+
+def _combo_description(combo):
+    details = []
+    for group_key, label in (("pizzas", "Pizza"), ("products", "Toode")):
+        items = combo.get(group_key) or []
+        counts = {}
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            name = clean_text(item.get("name"))
+            if not name:
+                continue
+            variant = clean_text(item.get("size") or item.get("details"))
+            key = (name, variant)
+            counts[key] = counts.get(key, 0) + 1
+        for (name, variant), count in counts.items():
+            description = f"{count} × {name}" if count > 1 else name
+            if variant:
+                description += f" ({variant})"
+            details.append(description)
+    return " + ".join(details) or None
+
+
+def parse_react_combos(state):
+    """Read the combo products, using the discounted price currently shown."""
+    products_data = state.get("productsData") if isinstance(state, dict) else None
+    combos = products_data.get("combos") if isinstance(products_data, dict) else None
+    if not isinstance(combos, list):
+        return []
+
+    parsed = []
+    for combo in combos:
+        if not isinstance(combo, dict):
+            continue
+        name = clean_text(combo.get("name"))
+        combo_id = combo.get("id")
+        price_info = combo.get("price") or {}
+        price = parse_price(
+            price_info.get("discounted")
+            if isinstance(price_info, dict) and price_info.get("discounted") is not None
+            else price_info.get("original") if isinstance(price_info, dict) else None
+        )
+        if not name or combo_id is None or price is None or price <= 0:
+            continue
+
+        parsed.append({
+            "dish_code": f"peetri-johvi:combo:{combo_id}",
+            "dish_name": name,
+            "dish_name_et": name,
+            "dish_name_ru": None,
+            "description_et": _combo_description(combo),
+            "category_ru": "Сеты",
+            "category_et": "Komplektid",
+            "product_type": "sets",
             "price": price,
             "price_variant": None,
         })
-
     return parsed
+
+
+def parse_react_state(state, session=None):
+    """Parse pizzas with size prices, pasta dishes, and combo offers."""
+    return (
+        parse_react_pizzas(state, session=session)
+        + parse_react_pastas(state)
+        + parse_react_combos(state)
+    )
 
 
 def parse_html(html):
     """Parse only pizza records from a Peetri Pizza pizzeria page."""
     initial_state = extract_initial_react_state(html)
     if initial_state:
-        react_pizzas = parse_react_pizzas(initial_state)
-        if react_pizzas:
-            return react_pizzas
+        react_products = parse_react_state(initial_state)
+        if react_products:
+            return react_products
 
     soup = BeautifulSoup(html or "", "html.parser")
     section = _find_pizza_section(soup)
@@ -413,30 +584,44 @@ def parse_html(html):
 
 
 def parse_menu():
-    response = requests.get(
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    response = session.get(
         MENU_URL,
-        headers=HEADERS,
         timeout=REQUEST_TIMEOUT,
     )
     response.raise_for_status()
 
+    state = extract_initial_react_state(response.text)
+    if state:
+        dishes = parse_react_state(state, session=session)
+        pizza_count = sum(row["product_type"] == "pizzas" for row in dishes)
+        pasta_count = sum(row["product_type"] == "pasta" for row in dishes)
+        combo_count = sum(row["product_type"] == "sets" for row in dishes)
+        print(
+            f"[Peetri Pizza/Jõhvi] Пиццы с вариантами размеров: {pizza_count}; "
+            f"паста: {pasta_count}; комбо: {combo_count}; всего ценовых строк: {len(dishes)}"
+        )
+        sizes_per_pizza = {}
+        for row in dishes:
+            if row["product_type"] == "pizzas":
+                base_code = row["dish_code"].rsplit(":", 1)[0]
+                sizes_per_pizza.setdefault(base_code, set()).add(row["price_variant"])
+        incomplete = {
+            code: sorted(sizes)
+            for code, sizes in sizes_per_pizza.items()
+            if sizes != set(PIZZA_SIZE_ORDER)
+        }
+        if incomplete:
+            print(
+                f"[Peetri Pizza/Jõhvi] Внимание: {len(incomplete)} пицц имеют "
+                f"не все варианты размеров: {incomplete}"
+            )
+        return dishes
+
     dishes = parse_html(response.text)
-    print(f"[Peetri Pizza/Jõhvi] HTTP {response.status_code}; URL: {response.url}; HTML: {len(response.text)} байт")
-    print(f"[Peetri Pizza/Jõhvi] Получено пицц: {len(dishes)} из {MENU_URL}")
-    if not dishes:
-        soup = BeautifulSoup(response.text, "html.parser")
-        page_title = clean_text(soup.title.get_text(" ", strip=True)) if soup.title else ""
-        state = extract_initial_react_state(response.text)
-        products_data = state.get("productsData", {}) if isinstance(state, dict) else {}
-        pizza_count = len(products_data.get("pizzas", [])) if isinstance(products_data, dict) and isinstance(products_data.get("pizzas"), list) else 0
-        print(
-            f"[Peetri Pizza/Jõhvi][Диагностика] title={page_title!r}; "
-            f"React state={'yes' if state else 'no'}; "
-            f"productsData keys={list(products_data) if isinstance(products_data, dict) else []}; "
-            f"pizzas={pizza_count}"
-        )
-        print(
-            "[Peetri Pizza/Jõhvi] Не найдена секция Pizzad или в исходном "
-            "состоянии не обнаружены пиццы. Supabase не будет изменена."
-        )
+    print(
+        f"[Peetri Pizza/Jõhvi] React state не найден; HTML fallback вернул "
+        f"{len(dishes)} записей."
+    )
     return dishes
