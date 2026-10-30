@@ -48,7 +48,7 @@ jobs:
 # It reads the real public menu only and never writes to Supabase.
 # A passing live smoke test confirms actual location-specific menu parsing.
   live-site-smoke-test:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[live-test]')
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
