@@ -1,0 +1,97 @@
+"""Regression tests for the Peetri Pizza Jõhvi menu parser."""
+import unittest
+
+from parsers.peetri_pizza import parse_html, get_product_type
+
+
+MENU_FIXTURE = """
+<html>
+  <body>
+    <section id="pizzas">
+      <h2>Pizzad</h2>
+      <div class="products">
+        <article class="product-card" data-product-id="101">
+          <span class="badge">Uus</span>
+          <h3>Pepperoni</h3>
+          <p class="description">Pepperoni, juust, kaste</p>
+          <span class="price">al. 6.50 €</span>
+        </article>
+        <article class="product-card" data-product-id="102">
+          <span class="badge">Lihata</span>
+          <h3>Margherita</h3>
+          <p class="description">Juust, kaste</p>
+          <span class="price">al. 5,50 €</span>
+        </article>
+      </div>
+    </section>
+    <section id="pasta">
+      <h2>Pastad</h2>
+      <article class="product-card" data-product-id="201">
+        <h3>Bolognese</h3>
+        <span class="price">7.90 €</span>
+      </article>
+    </section>
+    <section id="drinks">
+      <h2>Joogid</h2>
+      <article class="product-card" data-product-id="301">
+        <h3>Pepsi</h3>
+        <span class="price">2.50 €</span>
+      </article>
+    </section>
+  </body>
+</html>
+"""
+
+
+class PeetriPizzaParserTests(unittest.TestCase):
+    def test_only_pizzas_are_parsed_from_the_pizza_section(self):
+        dishes = parse_html(MENU_FIXTURE)
+        self.assertEqual(
+            [dish["dish_name_et"] for dish in dishes],
+            ["Pepperoni", "Margherita"],
+        )
+        self.assertEqual([dish["price"] for dish in dishes], [6.50, 5.50])
+
+    def test_pizza_records_have_canonical_category_and_stable_codes(self):
+        first_run = parse_html(MENU_FIXTURE)
+        second_run = parse_html(MENU_FIXTURE)
+        self.assertTrue(all(dish["product_type"] == "pizzas" for dish in first_run))
+        self.assertTrue(all(dish["category_ru"] == "Пицца" for dish in first_run))
+        self.assertTrue(all(dish["category_et"] == "Pitsad" for dish in first_run))
+        self.assertEqual(
+            [dish["dish_code"] for dish in first_run],
+            [dish["dish_code"] for dish in second_run],
+        )
+
+    def test_explicit_size_prices_are_returned_as_separate_variants(self):
+        html = """
+        <section>
+          <h2>Pizzad</h2>
+          <article class="product-card" data-product-id="303">
+            <h3>Oma Pizza</h3>
+            <span data-variant="Väike" data-price="6.50">Väike</span>
+            <span data-variant="Suur" data-price="9.50">Suur</span>
+          </article>
+        </section>
+        """
+        dishes = parse_html(html)
+        self.assertEqual(
+            [(dish["price"], dish["price_variant"]) for dish in dishes],
+            [(6.50, "Väike"), (9.50, "Suur")],
+        )
+        self.assertNotEqual(dishes[0]["dish_code"], dishes[1]["dish_code"])
+
+    def test_missing_pizza_section_returns_no_records(self):
+        self.assertEqual(
+            parse_html("<section><h2>Pastad</h2><p>None</p></section>"),
+            [],
+        )
+
+    def test_product_type_recognizes_estonian_and_russian_pizza_labels(self):
+        for category in ("Pizzad", "Pitsad", "Pizza", "Пицца"):
+            with self.subTest(category=category):
+                self.assertEqual(get_product_type(category), "pizzas")
+
+
+if __name__ == "__main__":
+    unittest.main()
