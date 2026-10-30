@@ -8,6 +8,7 @@ import re
 
 CATEGORY_RU_BY_PRODUCT_TYPE = {
     "main_courses": "Основные блюда",
+    "pizzas": "Пицца",
     "bowls": "Боулы",
     "burgers": "Бургеры",
     "tortillas": "Врапы и шаурма",
@@ -58,6 +59,7 @@ _ROLL_RE = re.compile(
 # category_et stores this app taxonomy, not the menu's original section heading.
 CATEGORY_ET_BY_PRODUCT_TYPE = {
     "main_courses": "Põhiroad",
+    "pizzas": "Pitsad",
     "bowls": "Bowls",
     "burgers": "Burgerid",
     "tortillas": "Wrapid ja kebabid",
@@ -85,6 +87,7 @@ CATEGORY_ET_BY_PRODUCT_TYPE = {
 
 CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
     "основные блюда": "Põhiroad",
+    "пицца": "Pitsad",
     "боулы": "Bowls",
     "бургеры": "Burgerid",
     "тортильи": "Tortillad",
