@@ -45,6 +45,38 @@ class BreakTimeClassificationTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(get_break_time_product_type(category, name), expected)
 
+    def test_mussels_are_appetizers(self):
+        cases = (
+            ("Eelroad", "Paneeritud rannakarbid", "appetizers"),
+            ("Nuudlid", "Rannakarbid koorega", "appetizers"),
+            ("Закуски", "Нежнейшие мидии в хрустящей панировке", "appetizers"),
+            ("Лапша", "Мидии в ракушке", "appetizers"),
+        )
+        for category, name, expected in cases:
+            with self.subTest(name=name, category=category):
+                self.assertEqual(get_break_time_product_type(category, name), expected)
+
+    def test_wrap_shawarma_doner_and_kebab_share_tortillas_type(self):
+        cases = (
+            ("Wraps", "Chicken wrap", "tortillas"),
+            ("Tortillad", "Kana tortilla", "tortillas"),
+            ("Shawarma", "Chicken shawarma", "tortillas"),
+            ("Дёнер-кебаб", "Дёнер-кебаб", "tortillas"),
+            ("Kebab", "Döner kebab", "tortillas"),
+            ("Brrrum", "Brrrum kanaga", "tortillas"),
+            ("Лаваш", "Бургер в лаваше", "tortillas"),
+            ("Основные блюда", "Шаурма с курицей", "tortillas"),
+        )
+        for category, name, expected in cases:
+            with self.subTest(name=name, category=category):
+                self.assertEqual(get_break_time_product_type(category, name), expected)
+
+    def test_hot_dogs_remain_main_courses(self):
+        self.assertEqual(
+            get_break_time_product_type("Hot Dog", "Classic hot dog"),
+            "main_courses",
+        )
+
     def test_every_product_in_praad_section_is_a_main_course(self):
         cases = (
             ("Praad", "Friikartulid viineritega", "main_courses"),
