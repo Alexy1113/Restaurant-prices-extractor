@@ -9,6 +9,7 @@ import re
 CATEGORY_RU_BY_PRODUCT_TYPE = {
     "main_courses": "Основные блюда",
     "pizzas": "Пицца",
+    "pasta": "Паста",
     "bowls": "Боулы",
     "burgers": "Бургеры",
     "tortillas": "Врапы и шаурма",
@@ -60,6 +61,7 @@ _ROLL_RE = re.compile(
 CATEGORY_ET_BY_PRODUCT_TYPE = {
     "main_courses": "Põhiroad",
     "pizzas": "Pitsad",
+    "pasta": "Pastad",
     "bowls": "Bowls",
     "burgers": "Burgerid",
     "tortillas": "Wrapid ja kebabid",
@@ -88,6 +90,7 @@ CATEGORY_ET_BY_PRODUCT_TYPE = {
 CATEGORY_ET_BY_RUSSIAN_CATEGORY = {
     "основные блюда": "Põhiroad",
     "пицца": "Pitsad",
+    "паста": "Pastad",
     "боулы": "Bowls",
     "бургеры": "Burgerid",
     "тортильи": "Tortillad",
