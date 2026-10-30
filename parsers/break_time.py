@@ -560,6 +560,11 @@ def get_product_type(category, name):
     if has_any(category_text, ("praad", "жаркое")):
         return "main_courses"
 
+    # A standalone "Burger Kebab" is a burger, not a wrap/kebab product.
+    # Set/menu detection above intentionally keeps "Burger Kebab Menu" as sets.
+    if has_any(name_text, ("burger kebab", "kebab burger", "бургер кебаб", "кебаб бургер")):
+        return "burgers"
+
     # Unify wraps, tortillas, lavash, döner, kebab, shawarma and
     # Brrrum-style products in the existing tortillas taxonomy.
     # Check both source sections and product names, before generic burger/main rules.
