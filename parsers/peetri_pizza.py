@@ -400,6 +400,12 @@ def parse_react_pizzas(state, session=None):
             if minimum_price is not None and minimum_price > 0:
                 size_prices = {"small": minimum_price}
 
+        if set(size_prices) != set(PIZZA_SIZE_ORDER):
+            print(
+                f"[Peetri Pizza/Jõhvi][Размеры] {name} (templateId={template_id}): "
+                f"получены {size_prices}; ожидаются {list(PIZZA_SIZE_ORDER)}"
+            )
+
         description = _pizza_description(product)
         for size in PIZZA_SIZE_ORDER:
             price = size_prices.get(size)
