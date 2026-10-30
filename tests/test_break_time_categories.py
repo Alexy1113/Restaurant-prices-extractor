@@ -45,6 +45,29 @@ class BreakTimeClassificationTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(get_break_time_product_type(category, name), expected)
 
+    def test_every_product_in_praad_section_is_a_main_course(self):
+        cases = (
+            ("Praad", "Friikartulid viineritega", "main_courses"),
+            ("Жаркое", "Картофель фри с сосисками и овощами + соус", "main_courses"),
+            ("Жаркое", 'Картофель фри "веселая улыбка" с наггетсами и соусом', "main_courses"),
+            ("Praad", "Friikartulid viineritega", "main_courses"),
+            ("Жаркое", "Куриные стрипсы с картофелем по-деревенски и овощами", "main_courses"),
+            ("Жаркое", "Белая рыба с картофелем по-деревенски и овощами", "main_courses"),
+        )
+        for category, name, expected in cases:
+            with self.subTest(name=name, category=category):
+                self.assertEqual(get_break_time_product_type(category, name), expected)
+
+    def test_standalone_strips_outside_praad_remain_appetizers(self):
+        self.assertEqual(
+            get_break_time_product_type("Eelroad", "Kanaribad"),
+            "appetizers",
+        )
+        self.assertEqual(
+            get_break_time_product_type("Закуски", "Куриные стрипсы"),
+            "appetizers",
+        )
+
     def test_onion_rings_are_appetizers_not_sides(self):
         self.assertEqual(
             get_break_time_product_type("Lisandid", "Sibularõngad"),
