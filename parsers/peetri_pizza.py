@@ -88,6 +88,7 @@ def get_product_type(category, name=None):
     category_key = normalize_text(category)
     if (
         category_key in PIZZA_SECTION_NAMES
+        or category_key == "пицца"
         or "pitsa" in category_key
         or "pizza" in category_key
     ):
@@ -145,30 +146,33 @@ def _has_price(card):
 
 
 def _candidate_card_elements(container):
+    # A combined CSS selector preserves the order in which products appear in
+    # the menu. Querying one selector at a time can reorder product cards.
     candidates = []
-    seen_ids = set()
-    for selector in CARD_SELECTORS:
-        for element in container.select(selector):
-            identity = id(element)
-            if identity in seen_ids:
-                continue
-            seen_ids.add(identity)
-            if not get_card_name(element) or not _has_price(element):
-                continue
+    for element in container.select(", ".join(CARD_SELECTORS)):
+        if not get_card_name(element) or not _has_price(element):
+            continue
 
-            names = {
-                clean_text(node.get_text(" ", strip=True)).casefold()
-                for node in _title_nodes(element)
-                if normalize_text(node.get_text(" ", strip=True)) not in IGNORED_TITLES
-            }
-            if len(names) > 1:
-                continue
-            candidates.append(element)
+        names = {
+            clean_text(node.get_text(" ", strip=True)).casefold()
+            for node in _title_nodes(element)
+            if normalize_text(node.get_text(" ", strip=True)) not in IGNORED_TITLES
+        }
+        if len(names) > 1:
+            continue
+        candidates.append(element)
 
-    # Prefer the smallest matching node so outer product-list wrappers are
-    # not mistaken for individual product cards.
-    candidates.sort(key=lambda element: len(element.get_text(" ", strip=True)))
-    return candidates
+    # Drop outer wrappers when they contain a more specific candidate card,
+    # while preserving the document order of the remaining product elements.
+    candidate_ids = {id(element) for element in candidates}
+    return [
+        element
+        for element in candidates
+        if not any(
+            id(descendant) in candidate_ids
+            for descendant in element.find_all(True)
+        )
+    ]
 
 
 def _find_pizza_section(soup):
