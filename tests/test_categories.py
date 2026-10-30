@@ -63,7 +63,7 @@ class CategoryNormalizationTests(unittest.TestCase):
             ("gunkan", "Гунканы", "Gunkanid"),
             ("sets", "Сеты", "Komplektid"),
             ("soups", "Супы", "Supid"),
-            ("noodles", "Лапша", "Nuudlid"),
+            ("noodles", "Лапша и Паста", "Nuudlid ja pasta"),
         )
         for product_type, category_ru, expected_et in cases:
             with self.subTest(product_type=product_type):
@@ -348,15 +348,45 @@ class CategoryNormalizationTests(unittest.TestCase):
         )
 
 
-    def test_pasta_category_is_canonical_in_both_languages(self):
-        self.assertEqual(
-            canonical_category_ru("pasta", category_ru="Pastad", category_et="Pastad"),
-            "Паста",
+    def test_noodles_and_pasta_share_one_category_in_both_languages(self):
+        for product_type in ("noodles", "pasta"):
+            with self.subTest(product_type=product_type):
+                self.assertEqual(
+                    canonical_category_ru(product_type),
+                    "Лапша и Паста",
+                )
+                self.assertEqual(
+                    canonical_category_et(product_type),
+                    "Nuudlid ja pasta",
+                )
+
+    def test_source_pasta_and_noodles_headings_are_unified_even_if_type_is_generic(self):
+        cases = (
+            ("main_courses", "Паста и бириани", "Pasta"),
+            ("other", "Лапша", "Nuudlid"),
+            ("main_courses", "Pasta", "Pastad"),
         )
-        self.assertEqual(
-            canonical_category_et("pasta", category_ru="Паста", category_et="Pastad"),
-            "Pastad",
+        for product_type, category_ru, category_et in cases:
+            with self.subTest(category_ru=category_ru, category_et=category_et):
+                self.assertEqual(
+                    canonical_category_ru(product_type, category_ru, category_et),
+                    "Лапша и Паста",
+                )
+                self.assertEqual(
+                    canonical_category_et(product_type, category_ru, category_et),
+                    "Nuudlid ja pasta",
+                )
+
+    def test_monk_pasta_and_noodles_sections_keep_specific_product_types(self):
+        cases = (
+            ("Pasta", "Creamy pasta", "pasta"),
+            ("Паста и бириани", "Chicken biryani", "pasta"),
+            ("Лапша", "Удон с курицей", "noodles"),
+            ("Nuudlid", "Kana nuudlid", "noodles"),
         )
+        for category, name, expected in cases:
+            with self.subTest(category=category, name=name):
+                self.assertEqual(get_monk_product_type(category, name), expected)
 
 
 if __name__ == "__main__":
