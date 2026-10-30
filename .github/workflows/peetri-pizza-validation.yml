@@ -50,7 +50,7 @@ jobs:
   live-site-smoke-test:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[live-test]')
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -63,64 +63,38 @@ jobs:
       - name: Install parser dependencies
         run: python -m pip install --upgrade pip requests beautifulsoup4
 
-      - name: Parse live Jõhvi pizza menu without writing to Supabase
+      - name: Parse live Jõhvi menu without writing to Supabase
         run: |
           python - <<'PY'
-          import json
-          import requests
-          from parsers.peetri_pizza import (
-              MENU_URL, HEADERS, parse_menu, extract_initial_react_state
-          )
+          from collections import Counter
+          from parsers.peetri_pizza import parse_menu
 
           rows = parse_menu()
-          print(f"LIVE SMOKE TEST: extracted {len(rows)} Peetri Pizza Jõhvi rows")
+          counts = Counter(row["product_type"] for row in rows)
+          pizzas = [row for row in rows if row["product_type"] == "pizzas"]
+          pasta = [row for row in rows if row["product_type"] == "pasta"]
+          combos = [row for row in rows if row["product_type"] == "sets"]
 
-          session = requests.Session()
-          session.headers.update(HEADERS)
-          menu_response = session.get(MENU_URL, timeout=(8, 25))
-          menu_response.raise_for_status()
-          state = extract_initial_react_state(menu_response.text)
-          products = state.get("productsData", {}).get("pizzas", []) if state else []
-          print(f"MENU STATE: root keys={list(state) if state else []}")
-          print(f"MENU URLS: {json.dumps(state.get('urls', {}) if state else {}, ensure_ascii=False)[:3500]}")
-          products_data = state.get("productsData", {}) if state else {}
-          print(f"PRODUCT GROUPS: {[(key, type(value).__name__, len(value) if isinstance(value, list) else None) for key, value in products_data.items()] if isinstance(products_data, dict) else type(products_data)}")
-          for key, value in (products_data.items() if isinstance(products_data, dict) else []):
-              if isinstance(value, list) and value:
-                  print(f"GROUP {key} SAMPLE: {json.dumps(value[0], ensure_ascii=False)[:5000]}")
-          print(f"PRODUCT CATEGORIES: {json.dumps(state.get('productCategories', []) if state else [], ensure_ascii=False)[:7000]}")
-          if products:
-              pizza = products[0]
-              print(f"FIRST PIZZA KEYS: {list(pizza)}")
-              print(f"FIRST PIZZA DATA: {json.dumps(pizza, ensure_ascii=False)[:3500]}")
-              for field in ("urlAddNew", "urlQueue"):
-                  detail_url = pizza.get(field)
-                  if not detail_url:
-                      continue
-                  try:
-                      detail_response = session.get(detail_url, timeout=(8, 25))
-                      detail_state = extract_initial_react_state(detail_response.text)
-                      print(f"DETAIL {field}: status={detail_response.status_code}; url={detail_response.url}; html={len(detail_response.text)}")
-                      if detail_state:
-                          print(f"DETAIL {field} ROOT: {list(detail_state)}")
-                          print(f"DETAIL {field} STATE: {json.dumps(detail_state, ensure_ascii=False)[:10000]}")
-                      else:
-                          print(f"DETAIL {field} HAS NO initialReactState")
-                  except requests.RequestException as error:
-                      print(f"DETAIL {field} ERROR: {error}")
+          print(f"LIVE SMOKE TEST: {len(rows)} total price rows")
+          print(f"Pizza rows: {len(pizzas)}; unique pizzas: {len({row['dish_name'] for row in pizzas})}")
+          print(f"Pasta rows: {len(pasta)}; combos: {len(combos)}; counts: {dict(counts)}")
 
-          assert rows, "The live Jõhvi page returned no pizza records."
+          assert len({row["dish_name"] for row in pizzas}) == 31, "Expected 31 unique pizzas."
+          assert len(pizzas) == 93, f"Expected 31 pizzas × 3 sizes = 93 rows; got {len(pizzas)}."
+          assert len(pasta) == 4, f"Expected 4 pasta products; got {len(pasta)}."
+          assert len(combos) == 1, f"Expected one combo product; got {len(combos)}."
+
+          expected_sizes = {"small", "large", "family"}
+          for name in {row["dish_name"] for row in pizzas}:
+              sizes = {row["price_variant"] for row in pizzas if row["dish_name"] == name}
+              assert sizes == expected_sizes, f"{name}: expected {expected_sizes}, got {sizes}"
+
           invalid = [
               row for row in rows
               if not row.get("dish_name")
               or not row.get("dish_code")
-              or not row.get("product_type") == "pizzas"
-              or not row.get("category_ru") == "Пицца"
-              or not row.get("category_et") == "Pitsad"
               or float(row.get("price") or 0) <= 0
           ]
-          assert not invalid, f"Invalid pizza records: {invalid[:5]}"
-
-          print("Live menu smoke test passed. Supabase was not contacted.")
+          assert not invalid, f"Invalid menu rows: {invalid[:5]}"
+          print("Live menu test passed. Supabase was not contacted.")
           PY
-
