@@ -56,6 +56,7 @@ class CategoryNormalizationTests(unittest.TestCase):
         cases = (
             ("main_courses", "Основные блюда", "Põhiroad"),
             ("appetizers", "Закуски", "Eelroad"),
+            ("tortillas", "Тортильи", "Tortillad"),
             ("sides", "Гарниры", "Lisandid"),
             ("salads", "Салаты", "Salatid"),
             ("desserts", "Десерты", "Magustoidud"),
