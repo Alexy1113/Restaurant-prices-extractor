@@ -348,5 +348,16 @@ class CategoryNormalizationTests(unittest.TestCase):
         )
 
 
+    def test_pasta_category_is_canonical_in_both_languages(self):
+        self.assertEqual(
+            canonical_category_ru("pasta", category_ru="Pastad", category_et="Pastad"),
+            "Паста",
+        )
+        self.assertEqual(
+            canonical_category_et("pasta", category_ru="Паста", category_et="Pastad"),
+            "Pastad",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
