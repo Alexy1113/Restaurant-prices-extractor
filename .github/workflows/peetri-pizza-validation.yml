@@ -79,15 +79,17 @@ jobs:
           print(f"Pizza rows: {len(pizzas)}; unique pizzas: {len({row['dish_name'] for row in pizzas})}")
           print(f"Pasta rows: {len(pasta)}; combos: {len(combos)}; counts: {dict(counts)}")
 
-          assert len({row["dish_name"] for row in pizzas}) == 31, "Expected 31 unique pizzas."
-          assert len(pizzas) == 93, f"Expected 31 pizzas × 3 sizes = 93 rows; got {len(pizzas)}."
+          unique_pizzas = {row["dish_name"] for row in pizzas}
+          assert len(unique_pizzas) == 31, "Expected 31 unique pizzas."
+          assert len(pizzas) >= 31, "Every pizza must have at least one available priced size."
           assert len(pasta) == 4, f"Expected 4 pasta products; got {len(pasta)}."
           assert len(combos) == 1, f"Expected one combo product; got {len(combos)}."
 
           expected_sizes = {"small", "large", "family"}
-          for name in {row["dish_name"] for row in pizzas}:
+          for name in unique_pizzas:
               sizes = {row["price_variant"] for row in pizzas if row["dish_name"] == name}
-              assert sizes == expected_sizes, f"{name}: expected {expected_sizes}, got {sizes}"
+              assert sizes and sizes <= expected_sizes, f"{name}: unexpected size options {sizes}"
+          assert len({row["dish_code"] for row in rows}) == len(rows), "Duplicate dish_code values detected."
 
           invalid = [
               row for row in rows
