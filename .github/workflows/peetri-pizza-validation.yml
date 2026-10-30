@@ -66,10 +66,42 @@ jobs:
       - name: Parse live Jõhvi pizza menu without writing to Supabase
         run: |
           python - <<'PY'
-          from parsers.peetri_pizza import parse_menu
+          import json
+          import requests
+          from parsers.peetri_pizza import (
+              MENU_URL, HEADERS, parse_menu, extract_initial_react_state
+          )
 
           rows = parse_menu()
           print(f"LIVE SMOKE TEST: extracted {len(rows)} Peetri Pizza Jõhvi rows")
+
+          session = requests.Session()
+          session.headers.update(HEADERS)
+          menu_response = session.get(MENU_URL, timeout=(8, 25))
+          menu_response.raise_for_status()
+          state = extract_initial_react_state(menu_response.text)
+          products = state.get("productsData", {}).get("pizzas", []) if state else []
+          print(f"MENU STATE: root keys={list(state) if state else []}")
+          print(f"MENU URLS: {json.dumps(state.get('urls', {}) if state else {}, ensure_ascii=False)[:3500]}")
+          if products:
+              pizza = products[0]
+              print(f"FIRST PIZZA KEYS: {list(pizza)}")
+              print(f"FIRST PIZZA DATA: {json.dumps(pizza, ensure_ascii=False)[:3500]}")
+              for field in ("urlAddNew", "urlQueue"):
+                  detail_url = pizza.get(field)
+                  if not detail_url:
+                      continue
+                  try:
+                      detail_response = session.get(detail_url, timeout=(8, 25))
+                      detail_state = extract_initial_react_state(detail_response.text)
+                      print(f"DETAIL {field}: status={detail_response.status_code}; url={detail_response.url}; html={len(detail_response.text)}")
+                      if detail_state:
+                          print(f"DETAIL {field} ROOT: {list(detail_state)}")
+                          print(f"DETAIL {field} STATE: {json.dumps(detail_state, ensure_ascii=False)[:10000]}")
+                      else:
+                          print(f"DETAIL {field} HAS NO initialReactState")
+                  except requests.RequestException as error:
+                      print(f"DETAIL {field} ERROR: {error}")
 
           assert rows, "The live Jõhvi page returned no pizza records."
           invalid = [
