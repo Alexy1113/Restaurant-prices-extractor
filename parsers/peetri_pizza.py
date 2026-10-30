@@ -342,8 +342,22 @@ def parse_menu():
     response.raise_for_status()
 
     dishes = parse_html(response.text)
+    print(f"[Peetri Pizza/Jõhvi] HTTP {response.status_code}; URL: {response.url}; HTML: {len(response.text)} байт")
     print(f"[Peetri Pizza/Jõhvi] Получено пицц: {len(dishes)} из {MENU_URL}")
     if not dishes:
+        soup = BeautifulSoup(response.text, "html.parser")
+        page_title = clean_text(soup.title.get_text(" ", strip=True)) if soup.title else ""
+        headings = [
+            clean_text(node.get_text(" ", strip=True))
+            for node in soup.find_all(["h1", "h2", "h3", "h4"])
+        ]
+        body_text = (
+            clean_text(soup.body.get_text(" ", strip=True))[:2500]
+            if soup.body else ""
+        )
+        print(f"[Peetri Pizza/Jõhvi][Диагностика] Заголовок страницы: {page_title!r}")
+        print(f"[Peetri Pizza/Jõhvi][Диагностика] Заголовки: {headings[:40]!r}")
+        print(f"[Peetri Pizza/Jõhvi][Диагностика] Текст страницы: {body_text!r}")
         print(
             "[Peetri Pizza/Jõhvi] Не найдена секция Pizzad или в карточках "
             "не обнаружены названия и цены. Supabase не будет изменена."
