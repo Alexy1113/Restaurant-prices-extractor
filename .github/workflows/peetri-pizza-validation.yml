@@ -83,6 +83,12 @@ jobs:
           products = state.get("productsData", {}).get("pizzas", []) if state else []
           print(f"MENU STATE: root keys={list(state) if state else []}")
           print(f"MENU URLS: {json.dumps(state.get('urls', {}) if state else {}, ensure_ascii=False)[:3500]}")
+          products_data = state.get("productsData", {}) if state else {}
+          print(f"PRODUCT GROUPS: {[(key, type(value).__name__, len(value) if isinstance(value, list) else None) for key, value in products_data.items()] if isinstance(products_data, dict) else type(products_data)}")
+          for key, value in (products_data.items() if isinstance(products_data, dict) else []):
+              if isinstance(value, list) and value:
+                  print(f"GROUP {key} SAMPLE: {json.dumps(value[0], ensure_ascii=False)[:5000]}")
+          print(f"PRODUCT CATEGORIES: {json.dumps(state.get('productCategories', []) if state else [], ensure_ascii=False)[:7000]}")
           if products:
               pizza = products[0]
               print(f"FIRST PIZZA KEYS: {list(pizza)}")
