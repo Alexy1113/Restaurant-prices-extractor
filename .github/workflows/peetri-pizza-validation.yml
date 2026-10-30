@@ -1,0 +1,45 @@
+name: Peetri Pizza parser validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "parsers/peetri_pizza.py"
+      - "parsers/categories.py"
+      - "tests/test_peetri_pizza_parser.py"
+      - "tests/test_categories.py"
+      - ".github/workflows/peetri-pizza-validation.yml"
+  push:
+    branches:
+      - feature/peetri-pizza-johvi
+    paths:
+      - "parsers/peetri_pizza.py"
+      - "parsers/categories.py"
+      - "tests/test_peetri_pizza_parser.py"
+      - "tests/test_categories.py"
+      - ".github/workflows/peetri-pizza-validation.yml"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install parser dependencies
+        run: python -m pip install --upgrade pip requests beautifulsoup4
+
+      - name: Compile Peetri Pizza parser and tests
+        run: python -m compileall -q parsers/peetri_pizza.py tests/test_peetri_pizza_parser.py tests/test_categories.py
+
+      - name: Run Peetri Pizza parser tests
+        run: python -m unittest discover -s tests -p "test_peetri_pizza_parser.py" -v
+
+      - name: Run shared category tests
+        run: python -m unittest discover -s tests -p "test_categories.py" -v
