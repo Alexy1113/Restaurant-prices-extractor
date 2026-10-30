@@ -53,9 +53,18 @@ class BreakTimeCategoryTests(unittest.TestCase):
         )
 
     def test_shawarma_kebab_and_hot_dog_do_not_create_new_categories(self):
-        self.assertEqual(get_product_type("Shawarma", "Shawarma kanalihaga"), "main_courses")
-        self.assertEqual(get_product_type("Kebab", "Kebab veiselihaga"), "main_courses")
-        self.assertEqual(get_product_type("Hot dog", "Hot dog lavas"), "main_courses")
+        self.assertEqual(
+            get_product_type("Shawarma", "Shawarma kanalihaga"),
+            "tortillas",
+        )
+        self.assertEqual(
+            get_product_type("Kebab", "Kebab veiselihaga"),
+            "tortillas",
+        )
+        self.assertEqual(
+            get_product_type("Hot dog", "Hot dog lavas"),
+            "tortillas",
+        )
 
     def test_ice_cream_cocktails_map_to_existing_drinks_category(self):
         self.assertEqual(
@@ -88,7 +97,7 @@ class BreakTimeCategoryTests(unittest.TestCase):
             ("Joogid", "Pepsi", "drinks"),
             ("Kuumad joogid", "Kakao", "drinks"),
             ("Kastmed", "Küüslaugukaste", "sauces"),
-            ("Kebab", "Kebab veiselihaga", "main_courses"),
+            ("Kebab", "Kebab veiselihaga", "tortillas"),
             ("Kombineeritud", "Komplekt", "sets"),
             ("Lavash", "Lavašš kana ja juustuga", "tortillas"),
             ("Magustoit", "Magusad pannkoogid", "desserts"),
@@ -96,8 +105,8 @@ class BreakTimeCategoryTests(unittest.TestCase):
             ("Pannkoogid", "Magusad pannkoogid", "desserts"),
             ("Praad", "Steak tartare", "main_courses"),
             ("Salat", "Kanasalat", "salads"),
-            ("Shawarma", "Shawarma kanalihaga", "main_courses"),
-            ("Doner", "Döner grillkanaga", "main_courses"),
+            ("Shawarma", "Shawarma kanalihaga", "tortillas"),
+            ("Doner", "Döner grillkanaga", "tortillas"),
             ("Supid", "Kanasupp", "soups"),
             ("Suupisted", "Paneeritud krevetid", "appetizers"),
             ("Блины", "Блины с шоколадом", "desserts"),
@@ -124,7 +133,7 @@ class BreakTimeCategoryTests(unittest.TestCase):
     def test_drinks_sauces_and_snacks_use_existing_types(self):
         self.assertEqual(get_product_type("Alkohoolsed joogid", "Gin 0,5 l"), "drinks")
         self.assertEqual(get_product_type("Kastmed", "Küüslaugukaste"), "sauces")
-        self.assertEqual(get_product_type("Suupisted", "Kartul friikartulid + kaste"), "appetizers")
+        self.assertEqual(get_product_type("Suupisted", "Kartul friikartulid + kaste"), "sides")
 
 
 class BreakTimeCatalogDiscoveryTests(unittest.TestCase):
