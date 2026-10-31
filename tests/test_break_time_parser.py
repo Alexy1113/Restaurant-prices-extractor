@@ -52,7 +52,7 @@ class BreakTimeCategoryTests(unittest.TestCase):
             "Тортильи",
         )
 
-    def test_shawarma_kebab_and_hot_dog_do_not_create_new_categories(self):
+    def test_shawarma_and_kebab_use_tortillas_and_hot_dogs_have_their_own_category(self):
         self.assertEqual(
             get_product_type("Shawarma", "Shawarma kanalihaga"),
             "tortillas",
@@ -61,9 +61,10 @@ class BreakTimeCategoryTests(unittest.TestCase):
             get_product_type("Kebab", "Kebab veiselihaga"),
             "tortillas",
         )
+        # Break Time hot dogs keep their dedicated category, including lavash variants.
         self.assertEqual(
             get_product_type("Hot dog", "Hot dog lavas"),
-            "tortillas",
+            "hot_dogs",
         )
 
     def test_ice_cream_cocktails_map_to_existing_drinks_category(self):
@@ -93,7 +94,7 @@ class BreakTimeCategoryTests(unittest.TestCase):
             ("Burgerid", "Klassikaline Veiselihaburger", "burgers"),
             ("Grill", "BBQ grillkanaga", "main_courses"),
             ("Hommikusöök", "Omelett", "breakfast"),
-            ("Hot dog", "Hot dog", "main_courses"),
+            ("Hot dog", "Hot dog", "hot_dogs"),
             ("Joogid", "Pepsi", "drinks"),
             ("Kuumad joogid", "Kakao", "drinks"),
             ("Kastmed", "Küüslaugukaste", "sauces"),
