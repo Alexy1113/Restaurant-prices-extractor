@@ -62,11 +62,13 @@
     },
     "bowls": {
       "ru": "Боулы",
-      "et": "Bow'id",
+      "et": "Kausiroad",
       "emoji": "🥣",
       "aliases": {
         "ru": [],
         "et": [
+          "Bow'id",
+          "Bowlid",
           "Bowls"
         ]
       }
