@@ -92,7 +92,7 @@ class BreakTimeClassificationTests(unittest.TestCase):
         )
         for category, name, expected in cases:
             with self.subTest(category=category, name=name):
-                self.assertEqual(get_product_type(category, name), expected)
+                self.assertEqual(get_break_time_product_type(category, name), expected)
 
     def test_all_break_time_hot_dogs_including_lavash_use_hot_dogs_category(self):
         cases = (
