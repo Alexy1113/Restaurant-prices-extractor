@@ -531,8 +531,15 @@ def get_product_type(category, name):
     if has_any(category_text, ("kokteil", "коктейл")):
         return "ice_cream_shakes"
 
-    # A named combo or burger meal is a set, including products in the broad
-    # Estonian Eine section. Plain fries under Eine are still a side dish.
+    # All Break Time products containing a hot dog use the hot_dogs category,
+    # including lavash/wrap variants and menu bundles.
+    hot_dog_markers = ("hot dog", "hot-dog", "hotdog", "хот-дог", "хот дог", "хотдог")
+    if has_any(category_text, hot_dog_markers) or has_any(name_text, hot_dog_markers):
+        return "hot_dogs"
+
+    # A named combo or burger meal is a set, except hot dog products,
+    # which were assigned to hot_dogs immediately above.
+    # Plain fries under Eine are still a side dish.
     if has_any(category_text, _SET_CATEGORY_MARKERS):
         return "sets"
     # On this menu, the Estonian "Eine" category contains both burger meals
@@ -556,11 +563,6 @@ def get_product_type(category, name):
     if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
 
-    # Every Break Time hot dog belongs to the dedicated hot_dogs category,
-    # including lavash/wrap variants. Only explicit menu combos above stay sets.
-    hot_dog_markers = ("hot dog", "hot-dog", "hotdog", "хот-дог", "хот дог", "хотдог")
-    if has_any(category_text, hot_dog_markers) or has_any(name_text, hot_dog_markers):
-        return "hot_dogs"
 
     # Every product in the site's Praad / Жаркое section is a main course,
     # including fries served with sausages or nuggets and other meal portions.

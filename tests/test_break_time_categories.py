@@ -74,6 +74,7 @@ class BreakTimeClassificationTests(unittest.TestCase):
     def test_standalone_hot_dogs_use_the_dedicated_category(self):
         cases = (
             ("Hot Dog", "Classic hot dog", "hot_dogs"),
+            ("Eine", "Hot Dog + Friikartulid + jook", "hot_dogs"),
             ("Hot-Dog", "Klassikaline hot dog", "hot_dogs"),
             ("Pearoad", "Klassikaline hot dog", "hot_dogs"),
             ("Praad", "Hot dog vorstiga", "hot_dogs"),
