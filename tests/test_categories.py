@@ -27,6 +27,39 @@ class CategoryNormalizationTests(unittest.TestCase):
         self.assertEqual(canonical_category_ru("sushi_rolls", "Суши"), "Роллы и маки")
         self.assertEqual(canonical_category_ru("hosomaki", "Хосомаки"), "Роллы и маки")
 
+    def test_hot_dogs_share_a_dedicated_category_across_languages_and_legacy_types(self):
+        self.assertEqual(category_label("hot_dogs", "Русский"), "Хот-доги")
+        self.assertEqual(category_label("hot_dogs", "Eesti"), "Hot dogid")
+        self.assertEqual(get_category_emoji("hot_dogs"), "🌭")
+
+        for product_type in ("hot_dogs", "hotdog", "hot_dog", "hotdogs"):
+            with self.subTest(product_type=product_type):
+                self.assertEqual(resolve_category_key(product_type), "hot_dogs")
+                self.assertEqual(canonical_category_ru(product_type), "Хот-доги")
+                self.assertEqual(canonical_category_et(product_type), "Hot dogid")
+
+        # Older or future parsers may only return main_courses/other; the
+        # shared resolver still recognizes the category heading or dish name.
+        self.assertEqual(resolve_category_key("main_courses", "Hot Dog"), "hot_dogs")
+        self.assertEqual(
+            resolve_category_key("main_courses", "Основные блюда", dish_name="Classic hot dog"),
+            "hot_dogs",
+        )
+        self.assertEqual(
+            resolve_category_key("main_courses", "Основные блюда", "Pearoad", "Klassikaline hot dog"),
+            "hot_dogs",
+        )
+
+        # A hot dog served in lavash remains a wrap, not a standalone hot dog.
+        self.assertEqual(
+            resolve_category_key("main_courses", "Hot Dog", dish_name="Hot dog in lavash"),
+            "tortillas",
+        )
+        self.assertEqual(
+            resolve_category_key("tortillas", "Hot Dog", dish_name="Hot dog lavas"),
+            "tortillas",
+        )
+
     def test_alcohol_age_warning_is_preserved(self):
         self.assertEqual(
             canonical_category_ru("drinks", "Вино (18+)", "Joogid"),

@@ -556,6 +556,16 @@ def get_product_type(category, name):
     if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
 
+    # Standalone hot dogs have their own shared category. A hot dog served
+    # in lavash/wrap remains part of the tortillas group.
+    hot_dog_markers = ("hot dog", "hot-dog", "hotdog", "хот-дог", "хот дог", "хотдог")
+    if has_any(category_text, hot_dog_markers) or has_any(name_text, hot_dog_markers):
+        if has_any(name_text, (
+            "lavash", "lavas", "лаваш", "wrap", "врап", "tortilla", "тортиль"
+        )):
+            return "tortillas"
+        return "hot_dogs"
+
     # Every product in the site's Praad / Жаркое section is a main course,
     # including fries served with sausages or nuggets and other meal portions.
     if has_any(category_text, ("praad", "жаркое")):
@@ -578,10 +588,6 @@ def get_product_type(category, name):
     )
     if has_any(category_text, wrap_markers) or has_any(name_text, wrap_markers):
         return "tortillas"
-
-    # Hot dogs remain in main courses; they are not part of the wrap family.
-    if has_any(category_text, ("hot dog", "hotdog", "хот-дог", "хот дог")):
-        return "main_courses"
 
     # Product names/categories are more reliable than secondary labels on
     # several cards (e.g. a fish burger can also display a drinks tag).
@@ -678,10 +684,8 @@ def get_product_type(category, name):
     if has_any(category_text, _MAIN_CATEGORY_MARKERS):
         return "main_courses"
 
-    # Hot dogs, kebabs and shawarma do not have dedicated shared product types.
-    # Keep them in the existing main-course group instead of inventing categories.
+    # Kebab and shawarma without a wrap are retained in main courses.
     if has_any(all_text, (
-        "hot dog", "hotdog", "hot-dog", "хот-дог", "хот дог",
         "kebab", "kebabi", "doner", "döner", "shawarma", "шаверм", "шаурм",
         "šaslõkk", "шашлык", "praad",
     )):

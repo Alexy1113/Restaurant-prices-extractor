@@ -169,6 +169,11 @@ def get_product_type(category, name):
     if "tortilla" in name_text:
         return "tortillas"
 
+    if any(word in text for word in [
+        "hot dog", "hot-dog", "hotdog", "hotdogid", "хот-дог", "хот дог", "хотдог"
+    ]):
+        return "hot_dogs"
+
     if "salat" in name_text or "salad" in name_text:
         return "salads"
 

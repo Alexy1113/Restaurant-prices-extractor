@@ -34,6 +34,15 @@ _ROLL_RE = re.compile(
     r"\buramaki\b|\bfutomaki\b|ролл|\bмаки\b|хосомаки)",
     re.IGNORECASE,
 )
+
+_HOT_DOG_RE = re.compile(
+    r"(?:\bhot[\s-]?dog\w*\b|\bхот[\s-]?дог\w*)",
+    re.IGNORECASE,
+)
+_HOT_DOG_WRAP_RE = re.compile(
+    r"(?:\b(?:lavash|lavas|wrap|tortilla)\b|лаваш|врап|тортиль)",
+    re.IGNORECASE,
+)
 _DRINK_LIKE_RE = re.compile(
     r"(?:"
     r"\b(?:drink|drinks|beverage|beverages|coffee|espresso|cappuccino|"
@@ -145,6 +154,15 @@ def resolve_category_key(
             or _ROLL_RE.search(source_text)
             else "tempura"
         )
+
+    # Hot dogs have their own cross-restaurant group. Do not reclassify
+    # explicit sets, wraps, breakfast, desserts or pizza; a hot dog in lavash
+    # remains a tortilla/wrap product.
+    if product not in {"sets", "tortillas", "breakfast", "desserts", "pizzas"}:
+        if _HOT_DOG_RE.search(source_text):
+            if _HOT_DOG_WRAP_RE.search(name):
+                return "tortillas"
+            return "hot_dogs"
 
     key = category_key_for_product_type(product)
     if key:

@@ -17,7 +17,10 @@
     "cocktails": "drinks",
     "cocktail": "drinks",
     "alcoholic_drinks": "alcoholic_drinks",
-    "alcoholicdrinks": "alcoholic_drinks"
+    "alcoholicdrinks": "alcoholic_drinks",
+    "hotdog": "hot_dogs",
+    "hot_dog": "hot_dogs",
+    "hotdogs": "hot_dogs"
   },
   "categories": {
     "main_courses": {
@@ -306,6 +309,28 @@
         "et": [
           "Muud",
           "Other"
+        ]
+      }
+    },
+    "hot_dogs": {
+      "ru": "Хот-доги",
+      "et": "Hot dogid",
+      "emoji": "🌭",
+      "aliases": {
+        "ru": [
+          "Хот-дог",
+          "Хот дог",
+          "Хот-доги",
+          "Хот доги",
+          "Хотдог"
+        ],
+        "et": [
+          "Hot Dog",
+          "Hot Dogs",
+          "Hot-Dog",
+          "Hot dog",
+          "Hotdog",
+          "Hot-Dogid"
         ]
       }
     }

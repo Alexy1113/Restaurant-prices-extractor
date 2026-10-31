@@ -71,11 +71,17 @@ class BreakTimeClassificationTests(unittest.TestCase):
             with self.subTest(name=name, category=category):
                 self.assertEqual(get_break_time_product_type(category, name), expected)
 
-    def test_hot_dogs_remain_main_courses(self):
-        self.assertEqual(
-            get_break_time_product_type("Hot Dog", "Classic hot dog"),
-            "main_courses",
+    def test_standalone_hot_dogs_use_the_dedicated_category(self):
+        cases = (
+            ("Hot Dog", "Classic hot dog", "hot_dogs"),
+            ("Hot-Dog", "Klassikaline hot dog", "hot_dogs"),
+            ("Pearoad", "Klassikaline hot dog", "hot_dogs"),
+            ("Praad", "Hot dog vorstiga", "hot_dogs"),
+            ("Основные блюда", "Классический хот-дог", "hot_dogs"),
         )
+        for category, name, expected in cases:
+            with self.subTest(category=category, name=name):
+                self.assertEqual(get_break_time_product_type(category, name), expected)
 
     def test_hot_dogs_in_lavash_are_tortillas(self):
         cases = (
