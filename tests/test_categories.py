@@ -409,7 +409,7 @@ class CategoryNormalizationTests(unittest.TestCase):
             "breakfast": ("Завтраки", "Hommikusöök", "🍳"),
             "main_courses": ("Основные блюда", "Pearoad", "🍛"),
             "gunkan": ("Гунканы", "Gunkan", "🍣"),
-            "bowls": ("Боулы", "Bow'id", "🥣"),
+            "bowls": ("Боулы", "Kausiroad", "🥣"),
             "tortillas": ("Тортильи", "Tortillad", "🌯"),
         }
         for key, (expected_ru, expected_et, emoji) in expected.items():
@@ -418,6 +418,23 @@ class CategoryNormalizationTests(unittest.TestCase):
                 self.assertEqual(category_label(key, "Eesti"), expected_et)
                 self.assertEqual(CATEGORIES[key]["emoji"], emoji)
                 self.assertEqual(get_category_emoji(key), emoji)
+
+    def test_legacy_bowl_labels_normalize_to_kausiroad(self):
+        self.assertEqual(category_label("bowls", "Eesti"), "Kausiroad")
+        self.assertEqual(canonical_category_et("bowls"), "Kausiroad")
+
+        # Existing data may still contain the previous public label or English
+        # variants; all of them must resolve to the same shared category.
+        for legacy_label in ("Bow'id", "Bowlid", "Bowls"):
+            with self.subTest(legacy_label=legacy_label):
+                self.assertEqual(
+                    canonical_category_et(
+                        "other",
+                        category_ru="Боулы",
+                        category_et=legacy_label,
+                    ),
+                    "Kausiroad",
+                )
 
     def test_distinct_categories_remain_distinct(self):
         self.assertEqual(resolve_category_key("drinks", "Напитки", "Joogid"), "drinks")
