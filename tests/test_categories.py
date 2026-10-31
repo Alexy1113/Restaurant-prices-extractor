@@ -9,6 +9,7 @@ from parsers.categories import (
     canonical_category_ru,
     canonical_category_et,
 )
+from parsers.hesburger import get_product_type as get_hesburger_product_type
 from parsers.monk import get_product_type as get_monk_product_type
 from parsers.ocean_sushi import get_product_type
 
@@ -26,6 +27,12 @@ class CategoryNormalizationTests(unittest.TestCase):
         self.assertEqual(canonical_category_ru("sets", "Комплекты"), "Наборы и комбо")
         self.assertEqual(canonical_category_ru("sushi_rolls", "Суши"), "Роллы и маки")
         self.assertEqual(canonical_category_ru("hosomaki", "Хосомаки"), "Роллы и маки")
+
+    def test_restaurant_parsers_emit_the_shared_hot_dogs_product_type(self):
+        self.assertEqual(get_monk_product_type("Hot Dog", "Classic"), "hot_dogs")
+        self.assertEqual(get_monk_product_type("Основные блюда", "Classic hot dog"), "hot_dogs")
+        self.assertEqual(get_monk_product_type("Hot Dog", "Hot dog lavas"), "tortillas")
+        self.assertEqual(get_hesburger_product_type("Hot Dog", "Classic hot dog"), "hot_dogs")
 
     def test_hot_dogs_share_a_dedicated_category_across_languages_and_legacy_types(self):
         self.assertEqual(category_label("hot_dogs", "Русский"), "Хот-доги")

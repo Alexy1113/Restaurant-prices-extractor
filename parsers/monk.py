@@ -283,7 +283,7 @@ def get_product_type(category, name):
     if any(word in name_text for word in ("wrap", "tortilla", "тортиль", "врап")):
         return "tortillas"
 
-    if any(word in name_text for word in (
+    if any(word in all_text for word in (
         "hot dog", "hot-dog", "hotdog", "хот-дог", "хот дог", "хотдог"
     )):
         if any(word in name_text for word in (
