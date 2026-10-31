@@ -43,6 +43,11 @@ _HOT_DOG_WRAP_RE = re.compile(
     r"(?:\b(?:lavash|lavas|wrap|tortilla)\b|лаваш|врап|тортиль)",
     re.IGNORECASE,
 )
+_HOT_DOG_COMBO_RE = re.compile(
+    r"(?:[+]|\b(?:menu|menuu|eine|combo|kombo|set|komplekt|"
+    r"комбо|набор|сет)\b)",
+    re.IGNORECASE,
+)
 _DRINK_LIKE_RE = re.compile(
     r"(?:"
     r"\b(?:drink|drinks|beverage|beverages|coffee|espresso|cappuccino|"
@@ -155,14 +160,21 @@ def resolve_category_key(
             else "tempura"
         )
 
+    # Explicit sets always win over the hot-dog product identity. This also
+    # repairs older rows whose product_type was stored as hot_dogs by a
+    # previous parser version but whose name clearly identifies a combo/menu.
+    if product == "sets":
+        return "sets"
+
+    if _HOT_DOG_RE.search(source_text) and _HOT_DOG_COMBO_RE.search(source_text):
+        return "sets"
+
     # An explicit hot_dogs parser classification is authoritative, including
-    # products served in lavash/wraps (for example, Break Time hot dogs).
+    # lavash/wrap versions. Non-Break-Time restaurants may still map a
+    # hot dog in a wrap to tortillas when their parser has not classified it.
     if product == "hot_dogs":
         return "hot_dogs"
 
-    # Recognize hot dogs from legacy/generic source data when the parser did
-    # not supply the dedicated product type. Other restaurants may still
-    # classify a hot dog wrap as a tortilla.
     if product not in {"sets", "tortillas", "breakfast", "desserts", "pizzas"}:
         if _HOT_DOG_RE.search(source_text):
             if _HOT_DOG_WRAP_RE.search(name):

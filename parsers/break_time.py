@@ -531,14 +531,7 @@ def get_product_type(category, name):
     if has_any(category_text, ("kokteil", "коктейл")):
         return "ice_cream_shakes"
 
-    # All Break Time products containing a hot dog use the hot_dogs category,
-    # including lavash/wrap variants and menu bundles.
-    hot_dog_markers = ("hot dog", "hot-dog", "hotdog", "хот-дог", "хот дог", "хотдог")
-    if has_any(category_text, hot_dog_markers) or has_any(name_text, hot_dog_markers):
-        return "hot_dogs"
-
-    # A named combo or burger meal is a set, except hot dog products,
-    # which were assigned to hot_dogs immediately above.
+    # A named combo or burger meal is a set, including meals built around hot dogs.
     # Plain fries under Eine are still a side dish.
     if has_any(category_text, _SET_CATEGORY_MARKERS):
         return "sets"
@@ -562,6 +555,12 @@ def get_product_type(category, name):
         return "sets"
     if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
+
+    # Individual hot dogs (including lavash variants) get their own category.
+    # This is intentionally after combo detection so hot-dog meals remain sets.
+    hot_dog_markers = ("hot dog", "hot-dog", "hotdog", "хот-дог", "хот дог", "хотдог")
+    if has_any(category_text, hot_dog_markers) or has_any(name_text, hot_dog_markers):
+        return "hot_dogs"
 
 
     # Every product in the site's Praad / Жаркое section is a main course,
