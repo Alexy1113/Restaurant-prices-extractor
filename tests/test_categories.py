@@ -45,6 +45,17 @@ class CategoryNormalizationTests(unittest.TestCase):
                 self.assertEqual(canonical_category_ru(product_type), "Хот-доги")
                 self.assertEqual(canonical_category_et(product_type), "Hot dogid")
 
+        # If an older parser has already written a hot-dog combo as hot_dogs,
+        # the shared resolver still restores the combo category.
+        self.assertEqual(
+            resolve_category_key("hot_dogs", "Hot Dog", dish_name="Hot Dog Menu"),
+            "sets",
+        )
+        self.assertEqual(
+            resolve_category_key("hot_dogs", "Hot Dog", dish_name="Hot Dog + Friikartulid + jook"),
+            "sets",
+        )
+
         # Older or future parsers may only return main_courses/other; the
         # shared resolver still recognizes the category heading or dish name.
         self.assertEqual(resolve_category_key("main_courses", "Hot Dog"), "hot_dogs")
