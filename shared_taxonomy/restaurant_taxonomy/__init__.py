@@ -155,9 +155,14 @@ def resolve_category_key(
             else "tempura"
         )
 
-    # Hot dogs have their own cross-restaurant group. Do not reclassify
-    # explicit sets, wraps, breakfast, desserts or pizza; a hot dog in lavash
-    # remains a tortilla/wrap product.
+    # An explicit hot_dogs parser classification is authoritative, including
+    # products served in lavash/wraps (for example, Break Time hot dogs).
+    if product == "hot_dogs":
+        return "hot_dogs"
+
+    # Recognize hot dogs from legacy/generic source data when the parser did
+    # not supply the dedicated product type. Other restaurants may still
+    # classify a hot dog wrap as a tortilla.
     if product not in {"sets", "tortillas", "breakfast", "desserts", "pizzas"}:
         if _HOT_DOG_RE.search(source_text):
             if _HOT_DOG_WRAP_RE.search(name):

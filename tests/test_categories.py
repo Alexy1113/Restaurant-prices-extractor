@@ -66,6 +66,10 @@ class CategoryNormalizationTests(unittest.TestCase):
             resolve_category_key("tortillas", "Hot Dog", dish_name="Hot dog lavas"),
             "tortillas",
         )
+        self.assertEqual(
+            resolve_category_key("hot_dogs", "Hot Dog", dish_name="Hot dog lavas"),
+            "hot_dogs",
+        )
 
     def test_alcohol_age_warning_is_preserved(self):
         self.assertEqual(

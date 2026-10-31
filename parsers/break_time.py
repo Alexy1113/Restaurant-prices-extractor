@@ -556,14 +556,10 @@ def get_product_type(category, name):
     if "eine" in name_text and not has_any(name_text, _SIDE_MARKERS):
         return "sets"
 
-    # Standalone hot dogs have their own shared category. A hot dog served
-    # in lavash/wrap remains part of the tortillas group.
+    # Every Break Time hot dog belongs to the dedicated hot_dogs category,
+    # including lavash/wrap variants. Only explicit menu combos above stay sets.
     hot_dog_markers = ("hot dog", "hot-dog", "hotdog", "хот-дог", "хот дог", "хотдог")
     if has_any(category_text, hot_dog_markers) or has_any(name_text, hot_dog_markers):
-        if has_any(name_text, (
-            "lavash", "lavas", "лаваш", "wrap", "врап", "tortilla", "тортиль"
-        )):
-            return "tortillas"
         return "hot_dogs"
 
     # Every product in the site's Praad / Жаркое section is a main course,
